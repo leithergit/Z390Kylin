@@ -1,0 +1,37 @@
+Z390 Printer SDK 读卡写部分命令参数
+
+1.ExtraCommand
+1."ReadBankNo"
+	InCmd:-
+	Return:Card No
+ 
+2."WriteCard1"
+	Command
+    InCmd:-
+	Return:
+3."WriteCard2"
+    InCmd:"RESULT1","RESULT2",
+	Return:
+4."WriteCard3"
+	InCmd:"RESULT","SHBZHM","XM",	"XB",	"MZ",	"CSRQ"
+	Return:
+
+5."WriteCard4"
+	InCmd:"KSBM","KLB","GFBB","CSHJGBM","FKRQ","KYXQ","KH","RESULT"
+	Return:
+	
+6."WriteCard5"
+	InCmd:"RESULT1","RESULT2" 
+	Return:
+	
+7."WriteCard6":
+	InCmd: "<ROOT><USERPIN>123456</USERPIN></ROOT>",其中123456为默认密码
+	Return:
+	
+8."WriteCard7"
+	InCmd:	"USERPIN",	"QMZS",	"RESULT",	"JMZS",	"JMMY",	"OLDGLYPIN",	"GLYPIN",	"OLDZKMY",	"ZKMY"
+	Return:
+	
+Print_IcExchange
+	byIndata:
+	Return
