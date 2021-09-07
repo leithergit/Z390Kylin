@@ -1,0 +1,80 @@
+XFSFORM "CardPrinterForm_SSCard"
+BEGIN
+    UNIT MM,10,10
+    SIZE 2048,3200
+    LANGUAGE 2052
+
+    XFSFIELD "PictureHeadPic"  
+    BEGIN
+      POSITION 3,11
+      SIZE 20,25
+      FORMAT "RESERVE"
+      TYPE GRAPHIC
+    END
+    
+    XFSFIELD "Print_SS2Name"  
+    BEGIN
+      POSITION 26,14
+      SIZE 0,8
+      FONT "宋体"
+      RGBCOLOR 0,0,0
+      STYLE BOLD
+      FORMAT "RESERVE"
+      TYPE TEXT
+      INITIALVALUE "姓名  阿诺施瓦辛格"
+    END
+    
+    XFSFIELD "Print_SS2No"  
+    BEGIN
+      POSITION 26,19
+      SIZE 0,8
+      FONT "宋体"
+      RGBCOLOR 0,0,0
+      STYLE BOLD
+      FORMAT "RESERVE"
+      TYPE TEXT
+      INITIALVALUE "社会保障号码  123456789012345678"
+    END
+    
+    XFSFIELD "Print_SS2CardNo"  
+    BEGIN
+      POSITION 26,24
+      SIZE 0,8
+      FONT "宋体"
+      RGBCOLOR 0,0,0
+      STYLE BOLD
+      FORMAT "RESERVE"
+      TYPE TEXT
+      INITIALVALUE "社会保障卡号  ABCDEFGHIJKLMN"
+    END
+    
+    XFSFIELD "Print_SSEx1"  
+    BEGIN
+      POSITION 26,29
+      SIZE 0,8
+      FONT "宋体"
+      RGBCOLOR 0,0,0
+      STYLE BOLD
+      FORMAT "RESERVE"
+      TYPE TEXT
+      INITIALVALUE "发卡日期  2019年9月27日"
+    END
+	
+    XFSFIELD "Print_SSEx2"  
+    BEGIN
+      POSITION 124,67
+      SIZE 0,7
+      FONT "宋体"
+      RGBCOLOR 0,0,0
+      STYLE BOLD
+      FORMAT "RESERVE"
+      TYPE TEXT
+    END
+END
+
+XFSMEDIA "CardPrinterForm_SSCard"
+BEGIN
+    UNIT MM,10,10
+    SIZE 2048,3200
+    RESTRICTED 0,0,0,0
+END
