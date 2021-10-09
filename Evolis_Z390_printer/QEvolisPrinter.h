@@ -14,7 +14,7 @@
 #include "../sdk/evolis/include/evolis_def.h"
 #include <string>
 using namespace std;
-#define LibVer     "Z390_kylin_aarch64_1.0.1.2 "
+#define LibVer     "Z390_kylin_aarch64_1.0.1.4 "
 struct myFontInfo
 {
     string strPath;
@@ -84,6 +84,13 @@ typedef struct PicInfo
     }
 }PICINFO;
 using PicInfoPtr = shared_ptr<PicInfo>;
+enum FontStyle
+{
+    Style_Normal     = 1,
+    Style_Bold       = 2,
+    Style_Italic     = 4,
+    Style_Black      = 8,
+};
 
 typedef struct TextInfo
 {
@@ -93,7 +100,7 @@ typedef struct TextInfo
     float   fyPos;
     string  pFontName;
     int     nFontSize;
-    int     nFontStyle; // 1-常规；2-粗体；4-斜体；8-黑体
+    FontStyle  nFontStyle; // 1-常规；2-粗体；4-斜体；8-黑体
     int     nColor;
     int     nType;
     TextInfo()
@@ -101,7 +108,7 @@ typedef struct TextInfo
         nAngle = 0;
         fxPos = 0;
         nFontSize = 0;
-        nFontStyle = 0;
+        nFontStyle = Style_Normal;
         nColor = 0;
         nType = 0;
     }
@@ -321,7 +328,7 @@ public:
     int  SendCommand(const char *lpCmdIn,LPVOID &lpCmdOut,char *szRcCode);
     char szEvolisReply[32];
     int  MoveCardContact();
-    void AddText(char *szText,int nAngle, float fxPos, float fyPos,  int nFontSize, int nColor);
+    //void AddText(char *szText,int nAngle, float fxPos, float fyPos,  int nFontSize, int nColor);
     void PrintText();
     //void Exit();
     bool LoadFontFromResources();

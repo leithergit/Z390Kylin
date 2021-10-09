@@ -27,9 +27,8 @@ RESOURCES += \
     Z390Sample.qrc
 
 unix:!macx: LIBS +=  -ldl
+#unix:!macx: LIBS += -L$$PWD/../SDK/Lib/ -lwlt
+#unix:!macx: LIBS += -L$$PWD/../SDK/Lib/ -ldcrf32
 
-unix:!macx: LIBS += -L$$PWD/../build-debug/ -lwlt
-unix:!macx: LIBS += -L$$PWD/../build-debug/ -ldcrf32
-
-INCLUDEPATH += $$PWD/../build-debug
-DEPENDPATH += $$PWD/../build-debug
+INCLUDEPATH += $$PWD/../build-Release
+DEPENDPATH += $$PWD/../build-Release

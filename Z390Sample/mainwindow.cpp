@@ -45,6 +45,11 @@ ExtraCommand cmdlist[] =
         {"WriteCard:5",{"RESULT1","RESULT2"}},
         {"WriteCard:6",{"<ROOT><USERPIN>123456</USERPIN></ROOT>"}},
         {"WriteCard:7",{"USERPIN","QMZS","RESULT","JMZS","JMMY","OLDGLYPIN","GLYPIN","OLDZKMY","ZKMY"}},
+        {"EvolisCommand",{}},
+        {"Reset Delay",{"5000"}},
+        {"Set DeviceReset",{"True","False"}},
+        {"EnableOutput",{"True","False"}},
+        {"Enablelog",{"True","False"}},
    };
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -69,17 +74,19 @@ MainWindow::MainWindow(QWidget *parent)
     //ui->label_Image->setPixmap(QPixmap::fromImage(*pConvas));
     //ui->lineEdit_text_Color->installEventFilter(this);
     //ui->textEdit->document()->setMaximumBlockCount(512);
-    QString strCurPath = QDir::currentPath();
-    QString strFont = strCurPath + "/resources/SIMSUN.ttf";
-    QFileInfo fi(strFont);
-    if (fi.isFile())
-    {
-        ui->lineEdit_Font->setText(strFont);
-    }
+//    QString strCurPath = QDir::currentPath();
+//    QString strFont = strCurPath + "/resources/SIMSUN.ttf";
+//    QFileInfo fi(strFont);
+//    if (fi.isFile())
+//    {
+//        ui->lineEdit_Font->setText(strFont);
+//    }
 
     connect(this,&MainWindow::RestoreButtons,this,&MainWindow::OnRestoreButtons);
     connect(this,&MainWindow::AppendText,this,&MainWindow::OnAppendText);
     connect(this,&MainWindow::ScrollToEnd,this,&MainWindow::OnScrollToEnd);
+    ui->textEdit->setReadOnly(true);
+    ui->comboBox_Printer->setCurrentIndex(1);
 
 }
 
@@ -293,7 +300,7 @@ void MainWindow::Printer_InsertCard()
 
     long lTimeout = 2000;
     int nBox = ui->comboBox_cardbox->currentIndex();
-    int nDispPos = ui->comboBox_DispPOS->currentIndex();
+    int nDispPos = ui->comboBox_DispPOS->currentIndex() + 1;
 
     if (pPrinterInstance->Print_Dispense(lTimeout,nBox,nDispPos,szRCode))
         OutputMsg("Failed in Print_Dispense:%s",szRCode);
@@ -341,6 +348,7 @@ void MainWindow::Printer_GetStatus()
         OutputMsg("Print_Status Failed!");
         return ;
     }
+
     OutputMsg("Device = %s\tMedia = %s\tToner = %s.",szDevice[lpStatus->fwDevice],szMedia[lpStatus->fwMedia],szToner[lpStatus->fwToner]);
 }
 
@@ -358,8 +366,12 @@ void MainWindow::Printer_Start()
 
     if (pPrinterInstance->Print_StartPrint(lTimeout,szRCode))
     {
-        OutputMsg("Print_StartPrint Failed!");
+        OutputMsg("Print_StartPrint Failed %s!",szRCode);
         return ;
+    }
+    else
+    {
+        OutputMsg("Print_StartPrint succeed!");
     }
 }
 
@@ -372,7 +384,7 @@ void MainWindow::Printer_Reset()
 
     if (pPrinterInstance->Print_Reset(lTimeout,nResetOption,szRCode))
     {
-        OutputMsg("Print_Reset Failed!");
+        OutputMsg("Print_Reset Failed:%s!",szRCode);
         return ;
     }
     else
@@ -408,12 +420,85 @@ void MainWindow::Printer_ICPowerOff()
     long lTimeout = 2000;
     if (pPrinterInstance->Print_IcPowerOff(lTimeout,szRCode))
     {
-        OutputMsg("Print_IcPowerOn Failed!");
+        OutputMsg("Print_IcPowerOff Failed!");
     }
     else
     {
-        OutputMsg("Print_IcPowerOn Succeed!");
+        OutputMsg("Print_IcPowerOff Succeed!");
     }
+}
+
+//把a转换为Hex字符
+#define TOHEXA(a, b) {*b++ = chHexTableA[a >> 4]; *b++ = chHexTableA[a & 0xf];}
+/*
+ 功能描述		内存数据转换为16进制ASCII字符串
+ pHex			输入数据流
+ nHexLen		输入数据流长度
+ szAscString	输出16进制ASCII字符串缓冲区
+ nBuffLen		输出缓冲区最大长度
+ 返回值		<0时 输入参数不合法
+                >0 返回转换后的ASCII符串的长度
+*/
+int Binary2Hexstring(unsigned char *pBinary,int nHexLen, unsigned char *szHexString,int nBuffLen,CHAR chSeperator)
+{
+    static const  char chHexTableA[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+    if (!pBinary ||
+        !szHexString||
+        !nBuffLen)
+        return -1;
+    unsigned char nMult = 3;
+    if (chSeperator == '\0')
+        nMult = 2;
+    if (nHexLen*nMult > nBuffLen)
+        return -1;
+    unsigned char *p = &szHexString[0];
+
+    int n;
+    for (n = 0; n < nHexLen ; n++)
+    {
+        TOHEXA(pBinary[n], p);
+        if (nMult == 2)
+            continue;
+        *p++ = chSeperator;
+    }
+    return n*nMult;
+}
+
+#define		Char2DigitA(ch)	(ch > '9'?(ch - 'A' + 10):ch - '0')
+#define		UpcasecharA(ch)	( ch >= 'A'?ch:(ch - 'a' + 'A'))
+/*
+ 功能描述			16进制ASCII字符串转为用内存数据
+ szAscString		输入16进制ASCII字符串
+ nAscStringLen	输入数据长度
+ pHex				输出缓冲区
+ nBuffLen			输出缓冲区最大长度
+ 返回值			<0时 输入参数不合法
+                    >0 返回转换后pHex数据的长度
+*/
+int HexString2Binary(unsigned char* pHexBuffer, int nHexBuffLen,unsigned char* szBinary, int nBinaryLen,  CHAR chSeperator)
+{
+    if (!szBinary ||
+        !pHexBuffer ||
+        !nHexBuffLen)
+        return -1;
+    unsigned char nMult = 3;
+    if (chSeperator == '\0')
+        nMult = 2;
+
+    if (nBinaryLen * nMult < nHexBuffLen)
+        return -1;
+
+    int nCount = 0;
+    CHAR ch;
+    for (int i = 0; i < nHexBuffLen; i += nMult)
+    {
+        ch = UpcasecharA(pHexBuffer[i]);
+        unsigned char nHi = Char2DigitA(ch);
+        ch = UpcasecharA(pHexBuffer[i + 1]);
+        unsigned char nLo = Char2DigitA(ch);
+        szBinary[nCount++] = (nHi & 0x0F) << 4 | (nLo & 0x0F);
+    }
+    return nCount;
 }
 
 void MainWindow::Printer_ICExchange(const char *szCmd)
@@ -424,10 +509,26 @@ void MainWindow::Printer_ICExchange(const char *szCmd)
     long lTimeout = 2000;
     char szOut[1024] = {0};
     int nOutLen = 1024;
-    if (pPrinterInstance->Print_IcExchange(lTimeout,(unsigned char *)szCmd,strlen(szCmd),(unsigned char *)szOut,nOutLen,szRCode))
+    char szBinary[512] = {0};
+    // szCmd 类似“00A404000F7378312E73682EC9E7BBE1B1A3D5CF”的明文HexString
+    HexString2Binary((unsigned char *)szCmd,strlen(szCmd),(unsigned char *)szBinary,512,0);// 转为binary数据
+    unsigned char szCommand[32] = {0};
+    szCommand[0] = 0x00;
+    szCommand[1] = 0x84;
+    szCommand[2] = 0x00;
+    szCommand[3] = 0x00;
+    szCommand[4] = 0x08;
+
+    int nCmdLen = 5;
+    if (pPrinterInstance->Print_IcExchange(lTimeout,(unsigned char *)szBinary,strlen(szCmd)/2,(unsigned char *)szOut,nOutLen,szRCode))
+    //if (pPrinterInstance->Print_IcExchange(lTimeout,(unsigned char *)szCommand,nCmdLen,(unsigned char *)szOut,nOutLen,szRCode))
         OutputMsg("Print_IcExchange Failed!");
     else
-        OutputMsg("Print_IcExchange Succeed %d Byte:%s!",nOutLen,szOut);
+    {
+        char szOutHex[512] = {0};
+        Binary2Hexstring((unsigned char *)szOut,nOutLen,(unsigned char *)szOutHex,512,0);
+        OutputMsg("Print_IcExchange Succeed %d Byte:%s!",nOutLen,szOutHex);
+    }
 }
 
 
@@ -473,9 +574,14 @@ void MainWindow::on_pushButton_ExtraCommand_clicked()
     }
     else
     {
-        OutputMsg("Print_ExtraCommand Succeed:");
-        QString strmsg = QString::fromLocal8Bit((char *)szCommandout);
-        OutputMsg("%s.\n",strmsg.toStdString().c_str());
+        if (qstrCommand == "EvolisCommand")
+        {
+             OutputMsg("%s -> %s.",qstrData.toStdString().c_str(),szCommandout);
+        }
+        else
+        {
+            OutputMsg("Print_ExtraCommand succeed:%s",szRCode);
+        }
     }
     //Result(x,pPrinterInstance->Print_IcPowerOff(lTimeout, szRCode));
 }
@@ -545,8 +651,8 @@ void MainWindow::on_pushButton_browsegraph_clicked()
 
             QFileInfo fi(strFile);
             QString strImageSave = fi.absoluteDir().absolutePath() + "/Sample.bmp";
-            OutputMsg(strImageSave.toStdString().c_str());
-            Convas.save(strImageSave);
+            //OutputMsg(strImageSave.toStdString().c_str());
+            //Convas.save(strImageSave);
         }
     }
 }
@@ -656,27 +762,27 @@ void MainWindow::on_pushButton_PrinterSetImage_clicked()
     int nH = ui->lineEdit_graphH->text().toInt();
     int nAngle = ui->lineEdit_graph_angle->text().toInt();
 
-    QImage Convas(1024, 650, QImage::Format_RGB888);
-    Convas.fill(Qt::white);
-    QPainter painter(&Convas);
+//    QImage Convas(1024, 650, QImage::Format_RGB888);
+//    Convas.fill(Qt::white);
+//    QPainter painter(&Convas);
 
-    painter.setCompositionMode(QPainter::CompositionMode_Source);
+//    painter.setCompositionMode(QPainter::CompositionMode_Source);
 
-    QImage ImageLoad;
-    painter.setRenderHint(QPainter::Antialiasing, true);
+//    QImage ImageLoad;
+//    painter.setRenderHint(QPainter::Antialiasing, true);
 
-    if (ImageLoad.load(strFileImage))
-    {
-        painter.save();
-        int nConvasWidth = Convas.width();
-        int nConvasHeight = Convas.height();
-        painter.translate(nConvasWidth/2,nConvasHeight/2);
-        if (nAngle)
-            painter.rotate(nAngle);
-        painter.translate(-nConvasWidth/2,-nConvasHeight/2);
-        painter.drawImage(QRectF(nX,nY,nH,nW),ImageLoad);
-        painter.restore();
-    }
+//    if (ImageLoad.load(strFileImage))
+//    {
+//        painter.save();
+//        int nConvasWidth = Convas.width();
+//        int nConvasHeight = Convas.height();
+//        painter.translate(nConvasWidth/2,nConvasHeight/2);
+//        if (nAngle)
+//            painter.rotate(nAngle);
+//        painter.translate(-nConvasWidth/2,-nConvasHeight/2);
+//        painter.drawImage(QRectF(nX,nY,nH,nW),ImageLoad);
+//        painter.restore();
+//    }
 
 //    if (ui->checkBox_CheckPrinter->isChecked())
 //    {
@@ -689,15 +795,64 @@ void MainWindow::on_pushButton_PrinterSetImage_clicked()
 //        OutputMsg("Picture has input!\n");
 }
 
+#include <iconv.h>
+
+int code_convert(char *from_charset,char *to_charset,char *inbuf,size_t inlen,char *outbuf,size_t outlen)
+{
+    iconv_t cd;
+    int rc;
+    char **pin = &inbuf;
+    char **pout = &outbuf;
+
+    cd = iconv_open(to_charset,from_charset);
+    if (cd==0)
+        return -1;
+    if (iconv(cd,pin,&inlen,pout,&outlen)==-1)
+        return -1;
+    iconv_close(cd);
+    return 0;
+}
+
+// utf8码转为GB2312码
+int UTF8_GB2312(char *inbuf,int inlen,char *outbuf,int outlen)
+{
+    return code_convert("utf-8","gb2312",inbuf,inlen,outbuf,outlen);
+}
+
+// GB2312码转为utf8
+int GB2312_UTF8(char *inbuf,size_t inlen,char *outbuf,size_t outlen)
+{
+    return code_convert("gb2312","utf-8",inbuf,inlen,outbuf,outlen);
+}
+
+// utf8转为gbk
+string Utf8_GBK(const char *inbuf)
+{
+    int inlen=strlen(inbuf);
+    string strRet;
+    strRet.resize(inlen*2+2);
+    if(code_convert("utf-8","gbk",const_cast<char *>(inbuf),inlen,&strRet[0],strRet.size()))
+    return inbuf;
+    return strRet;
+}
+
+// gbk转为utf8
+string GBK_Utf8(const char *inbuf)
+{
+    int inlen=strlen(inbuf);
+    string strRet;
+    strRet.resize(inlen*2+2);
+    if(code_convert("gbk","utf-8",const_cast<char *>(inbuf),inlen,&strRet[0],strRet.size()))
+        return inbuf;
+    return strRet;
+}
+
+#include <iostream>
+#include <fstream>
+#include <string>
+using namespace  std;
 void MainWindow::on_pushButton_PrinterSetText_clicked()
 {
-    WaitCursor();
-    QString strFont = ui->lineEdit_Font->text();
-    if (!strFont.size())
-    {
-        OutputMsg("The font can't be empty,plz select a font file.");
-        return ;
-    }
     CheckPriner(pPrinterInstance);
     long lTimeout = 2000;
 
@@ -705,10 +860,8 @@ void MainWindow::on_pushButton_PrinterSetText_clicked()
 //    float x = ui->lineEdit_x->text().toFloat();
 //    float y = ui->lineEdit_y->text().toFloat();
 //    int nAngle = ui->lineEdit_text_angle->text().toInt();
-
 //    int size = ui->lineEdit_text_size->text().toInt();
 //    QString imageText = ui->lineEdit_text->text();
-
 //    QPainter painter(pConvas);
 //    /* 设置画刷的组合模式CompositionMode_SourceOut这个模式为目标图像在上。
 //    改变组合模式和上面的填充方式可以画出透明的图片。*/
@@ -727,13 +880,11 @@ void MainWindow::on_pushButton_PrinterSetText_clicked()
 //    painter.setPen(pen);
 //    int nConvasWidth = pConvas->width();
 //    int nConvasHeight = pConvas->height();
-
 //    painter.translate(nConvasWidth,nConvasHeight);
 //    painter.save();
 //    painter.rotate(nAngle);
 //    painter.translate(-nConvasWidth,-nConvasHeight);
 //    painter.drawText(QRectF(x, y, TextRect.width(), TextRect.height()), Qt::AlignLeft | Qt::AlignTop, imageText);
-
 //    painter.restore();
 ////    ui->label_Image->setPixmap(QPixmap::fromImage(*pConvas));
 
@@ -742,13 +893,16 @@ void MainWindow::on_pushButton_PrinterSetText_clicked()
 
      int nAngle = 180;
      int size = 8;
-      pPrinterInstance->Print_PrintText(lTimeout,"姓名  测试用户",nAngle,28,14.5,(char *)strFont.toStdString().c_str(),size,1,0,szRCode);
-      pPrinterInstance->Print_PrintText(lTimeout,"社会保障号码  123456789012345678",nAngle,28,19,(char *)strFont.toStdString().c_str(),size,1,0,szRCode);
-      pPrinterInstance->Print_PrintText(lTimeout,"社会保障卡号  ABCDEFGHIJKLMN",nAngle,28,23.5,(char *)strFont.toStdString().c_str(),size,1,0,szRCode);
-      pPrinterInstance->Print_PrintText(lTimeout,"发卡日期  2019年9月27日",nAngle,28,28,(char *)strFont.toStdString().c_str(),size,1,0,szRCode);
-
+     QString strFont =  ui->lineEdit_Font->text();
+      QString strUser    = "姓名  测试用户";
+      QString strID      = "社会保障号码  123456789012345678";
+      QString strCard    = "社会保障卡号  ABCDEFGHIJKLMN";
+      QString strDate    = "发卡日期  2019年9月27日";
+      pPrinterInstance->Print_PrintText(lTimeout,strUser.toLocal8Bit().data(),nAngle,28,14.5,(char *)strFont.toLocal8Bit().data(),size,1,0,szRCode);
+      pPrinterInstance->Print_PrintText(lTimeout,strID.toLocal8Bit().data(),nAngle,28,19,(char *)strFont.toLocal8Bit().data(),size,1,0,szRCode);
+      pPrinterInstance->Print_PrintText(lTimeout,strCard.toLocal8Bit().data(),nAngle,28,23.5,(char *)strFont.toLocal8Bit().data(),size,1,0,szRCode);
+      pPrinterInstance->Print_PrintText(lTimeout,strDate.toLocal8Bit().data(),nAngle,28,28,(char *)strFont.toLocal8Bit().data(),size,1,0,szRCode);
       OutputMsg("Print_PrintText Succeed!");
-
 }
 
 void MainWindow::on_pushButton_PrinterICOn_clicked()
@@ -922,4 +1076,93 @@ void MainWindow::on_pushButton_SetPrinterOption_clicked()
 
     if (!pPrinterInstance->Print_ExtraCommand(lTimeout,szOption[nCardSide][nOption],(void *)szVal,(LPVOID &)szCommandout,szRCode))
         OutputMsg("Set Printer Option[%s] to %s Succeed.",szOption[nCardSide][nOption],szVal);
+}
+
+void MainWindow::on_pushButton_PrinterLoadText_clicked()
+{
+    CheckPriner(pPrinterInstance);
+    const QString fileName = QFileDialog::getOpenFileName(this);
+    vector<string> vecText;
+    if (!fileName.isEmpty())
+    {
+        ifstream file;
+        file.open(fileName.toUtf8().data(),ios::in);
+        string strLine;
+        while(!file.eof())
+        {
+           getline(file,strLine);
+           vecText.push_back(strLine);
+        }
+    }
+    long lTimeout = 2000;
+    char szRCode[1024] ={0};
+     int nAngle = 180;
+     int size = 8;
+       int nFontStyle = 1;
+       if (ui->checkBox_Bold->isChecked())
+           nFontStyle = 2;
+       QString strFont =  ui->lineEdit_Font->text();
+       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[0].c_str(),nAngle,28,14.5,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+       {
+           OutputMsg("Print_PrintText Failed:%s",szRCode);
+           return ;
+       }
+       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[1].c_str(),nAngle,28,19,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+       {
+           OutputMsg("Print_PrintText Failed:%s",szRCode);
+           return ;
+       }
+       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[2].c_str(),nAngle,28,23.5,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+       {
+           OutputMsg("Print_PrintText Failed:%s",szRCode);
+           return ;
+       }
+       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[3].c_str(),nAngle,28,28,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+       {
+           OutputMsg("Print_PrintText Failed:%s",szRCode);
+           return ;
+       }
+
+      OutputMsg("Print_PrintText Succeed!");
+}
+
+void MainWindow::on_pushButton_PrinterInsert_2_clicked()
+{
+    WaitCursor();
+    CheckPriner(pPrinterInstance);
+    char szRCode[32] = {0};
+
+    long lTimeout = 5000;
+    char *szCommand="IndraftCard";
+
+    LPVOID szCommandout = nullptr;
+    if (pPrinterInstance->Print_ExtraCommand(lTimeout,szCommand,nullptr,szCommandout,szRCode))
+    {
+        OutputMsg("Print_ExtraCommand(IndraftCard) Failed!:%s",szRCode);
+    }
+    else
+    {
+        OutputMsg("Print_ExtraCommand(IndraftCard) Succeed.\n");
+
+    }
+}
+
+void MainWindow::on_comboBox_Extracommand_currentIndexChanged(const QString &arg1)
+{
+    /*
+        {"EvolisCommand",{}},
+        {"Reset Delay",{5}},
+*/
+    if (arg1 == "EvolisCommand" ||
+        arg1 == "Reset Delay")
+    {
+        ui->comboBox_ExtracommandData->setEditable(true);
+    }
+    else
+        ui->comboBox_ExtracommandData->setEditable(false);
+}
+
+void MainWindow::on_comboBox_Port_activated(const QString &arg1)
+{
+
 }

@@ -11,7 +11,7 @@
 #include <QObject>
 #include <QDir>
 
-#include "../Evolis_Z390_LithographPrinter/LithographPrinter.h"
+#include "../Evolis_Z390_printer/LithographPrinter.h"
 #include <QApplication>
 #include <thread>
 #include <chrono>
@@ -63,8 +63,9 @@ public:
     {
         memset(szError,0,1024);
         QString strCurrentPath = QDir::currentPath();
-        QString strLibPath = strCurrentPath + "/libEvolis_Z390_Printer.so";
+        QString strLibPath =  "./libEvolis_Z390_Printer.so";
         //QString strLibPath = strCurrentPath + "/libEvolis_Z390.so";
+        qDebug()<<"Try to load "<<strLibPath;
         pLibhandle = dlopen(strLibPath.toStdString().c_str(),RTLD_NOW|RTLD_GLOBAL);
         if (pLibhandle)
         {
@@ -220,6 +221,14 @@ private slots:
     void on_pushButton_Printer_clicked();
 
     void on_pushButton_SetPrinterOption_clicked();
+
+    void on_pushButton_PrinterLoadText_clicked();
+
+    void on_pushButton_PrinterInsert_2_clicked();
+
+    void on_comboBox_Extracommand_currentIndexChanged(const QString &arg1);
+
+    void on_comboBox_Port_activated(const QString &arg1);
 
 private:
     Ui::MainWindow *ui;

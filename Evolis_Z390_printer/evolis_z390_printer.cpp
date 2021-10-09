@@ -1059,7 +1059,7 @@ void ClearLog(QString strPath,int nDays = 30)
         inTextInfo->pFontName =strCurrentDir.toStdString().c_str();
         qDebug("Font = %s\t File = %s.",pFontName,inTextInfo->pFontName.c_str());
         inTextInfo->nFontSize = nFontSize;
-        inTextInfo->nFontStyle = nFontStyle;
+        inTextInfo->nFontStyle = (FontStyle)nFontStyle;
         inTextInfo->nColor = nColor;
         inTextInfo->nType = 0;  //文字是0
         pEvolisPriner->m_textInfo.push_back(inTextInfo);

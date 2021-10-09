@@ -112,7 +112,7 @@ The function putText renders the specified text string in the image. Symbols tha
     CV_WRAP virtual void putText(
         InputOutputArray img, const String& text, Point org,
         int fontHeight, Scalar color,
-        int thickness, int line_type, bool bottomLeftOrigin
+        int thickness, int line_type, bool bottomLeftOrigin,bool bBold =false
     ) = 0;
 
 /** @brief Calculates the width and height of a text string.

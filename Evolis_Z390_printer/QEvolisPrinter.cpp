@@ -1424,40 +1424,36 @@ int  QEvolisPrinter::GetBoxStatus(long lTimeout, Lithograph::LPLITHOGRAPHBOXINFO
     Funclog();
     CheckPrinter(m_pPrinter);
 
-    const char *szCmd="Rse;f";
-    char szReply1[16] = {0};
+    auto szCmd={"Rse;f",    // Test if there is card in feeder
+                            //卡箱无卡时：evolis_command(Rse;f) 返回:0,00 Volts
+                            //卡箱有卡时：evolis_command(Rse;f) 返回:5,00 Volts
+                "Rse;n",    // Test feeder near empty sensor volt > 1 as:3,92 Volts.
+                            // else vol <1 such as :0,17 Volts
+                            // if near empty
+                "Rlr;h"};   // Test the ejectbox is full
+                            // if it's near full,retrn CARD,else return NO CARD
+    char szReply[3][16] = {0};
     // chechk the card box status
     //RunlogF("Try to evolis_command(%s).\n",szCmd);
-    //卡箱无卡时：evolis_command(Rse;f) 返回:0,00 Volts
-    //卡箱有卡时：evolis_command(Rse;f) 返回:5,00 Volts，这个可以对上了
-    if (pevolis_command(m_pPrinter,szCmd,strlen(szCmd),szReply1,sizeof(szReply1)) < 0)
+    int i = 0;
+    for (auto var:szCmd)
     {
-        RunlogF("Faild in evolis_command(%s),Reply:%s",szCmd,szReply1);
-        strcpy(pszRcCode, "0006");
-        bFault = true;
-        return 1;
-    }
-
-    szCmd="Rse;n";
-    char szReply2[16] = {0};
-    // chechk the card box status
-    //RunlogF("Try to evolis_command(%s).\n",szCmd);
-    //卡箱无卡时：evolis_command(Rse;f) 返回:0,00 Volts
-    //卡箱有卡时：evolis_command(Rse;f) 返回:5,00 Volts，这个可以对上了
-    if (pevolis_command(m_pPrinter,szCmd,strlen(szCmd),szReply2,sizeof(szReply2)) < 0)
-    {
-        RunlogF("Faild in evolis_command(%s),Reply:%s",szCmd,szReply2);
-        strcpy(pszRcCode, "0006");
-        bFault = true;
-        return 1;
+        if (pevolis_command(m_pPrinter,var,strlen(var),szReply[i],sizeof(szReply[i])) < 0)
+        {
+            RunlogF("Faild in evolis_command(%s),Reply:%s",var,szReply[i]);
+            strcpy(pszRcCode, "0006");
+            bFault = true;
+            return 1;
+        }
+        i++;
     }
 
     CardBoxInfo[0].byType = 1;           //卡箱类型 0:未知，1：发卡箱，2：回收箱
     CardBoxInfo[0].byBoxNumber = 1;      //卡箱号
     CardBoxInfo[0].bHardwareSensor = false;//是否支持故障状态传感器,TRUE:支持，FALSE：不支持
-    if (szReply1[0] == '5')
+    if (szReply[0][0] == '5')
     {
-        if (szReply2[0] > '0')
+        if (szReply[1][0] > '0')
             CardBoxInfo[0].byStatus = 1;
         else
             CardBoxInfo[0].byStatus = 0;     //卡箱状态,0：正常; 1：卡少; 2:无卡; 3：不可操作; 4：不存在; 5：高(快满)；6：满； 7：未知
@@ -1469,7 +1465,10 @@ int  QEvolisPrinter::GetBoxStatus(long lTimeout, Lithograph::LPLITHOGRAPHBOXINFO
 
     CardBoxInfo[1].byType = 2;
     CardBoxInfo[1].byBoxNumber = 2;
-    CardBoxInfo[1].byStatus = 0;
+    if (strcmp(szReply[2],"CARD") == 0)
+        CardBoxInfo[1].byStatus = 6;
+    else
+        CardBoxInfo[1].byStatus = 0;
     CardBoxInfo[1].bHardwareSensor = false;
 
     char majorStatusValue[128] = {0};
@@ -1485,10 +1484,6 @@ int  QEvolisPrinter::GetBoxStatus(long lTimeout, Lithograph::LPLITHOGRAPHBOXINFO
     RunlogF("majorStatusValue = %s.\n",majorStatusValue);
     RunlogF("minorStatusValue = %s.\n",minorStatusValue);
 
-    if(strstr(minorStatusValue,"FEEDER_EMPTY"))
-    {
-        CardBoxInfo[0].byStatus = 2;
-    }
 
     lpBoxInfo->nCount = 2;
     lpBoxInfo->lpplist = CardBoxInfo;
@@ -1545,9 +1540,9 @@ int  QEvolisPrinter::DevStatus(long lTimeout, Lithograph::LPLITHOGRAPHSTATUS &lp
             if (RibbonNum == -1)
                 lpStatus->fwToner = 2;
             else if (RibbonNum <=20 )
-                lpStatus->fwToner = 0;
-            else
                 lpStatus->fwToner = 1;
+            else
+                lpStatus->fwToner = 0;
         }
 
         lpStatus->fwDevice = fwDevice;
@@ -1574,7 +1569,11 @@ int  QEvolisPrinter::DevStatus(long lTimeout, Lithograph::LPLITHOGRAPHSTATUS &lp
             lpStatus->fwMedia = 6;
             break;
         }
-
+        if (bFault)
+        {
+            lpStatus->fwMedia = 5;  // 故障时介质状态为5(jam)
+            lpStatus->fwDevice = 3;
+        }
         strcpy(pszRcCode, "0000");
         RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
         return 0;
@@ -1873,7 +1872,7 @@ int QEvolisPrinter::GetPrinterStatus(int * RibbonNum,int *Device, int *Media,cha
         return 1;
     }
 
-    auto szDetectCover = "Rse;o";
+    auto szDetectCover = "Rse;o";       // read cover sensor
     char szReply[32] = {0};
     //设备上盖开后：evolis_command(Rse;o) 返回:0,00 Volts
     //设备上盖闭合：evolis_command(Rse;f) 返回:5,00 Volts
@@ -1905,7 +1904,7 @@ int QEvolisPrinter::GetPrinterStatus(int * RibbonNum,int *Device, int *Media,cha
         *RibbonNum = -1;
     }
     else
-        *RibbonNum= ribbon.capacity - ribbon.remaining;
+        *RibbonNum= ribbon.remaining;
     // 无卡        majorStatusValue = READY         minorStatusValue = DEVICE_READY
     // 卡在机器内部  majorStatusValue = WARNING       minorStatusValue = DEVICE_BUSY
     // 卡在出卡口    majorStatusValue = WARNING       minorStatusValue = STDEVOLIS_DEF_CARD_ON_EJECT
@@ -1936,7 +1935,10 @@ int QEvolisPrinter::GetPrinterStatus(int * RibbonNum,int *Device, int *Media,cha
     else
     {
         if (bFault)
+        {
             *Device = 3;    // fault
+            *Media = 5;
+        }
         else
             *Device = 0;    // 在线
         RunlogF("evolis_status return:config = %d\tinformation = %d\twarning = %d\terror = %d.\n", es.config,es.information, es.warning,es.error);
@@ -2447,7 +2449,7 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
             ft2 = cv::freetype::createFreeType2();
 
             ft2->loadFontData(var->pFontName, 0); //加载字库文件
-            ft2->putText(FontROI, var->sText.c_str(), cv::Point(0, 0), fontHeight, CV_RGB(0, 0, 0), -1, CV_AA, false/*,var->nFontStyle == 2*/);
+            ft2->putText(FontROI, var->sText.c_str(), cv::Point(0, 0), fontHeight, CV_RGB(0, 0, 0), -1, CV_AA, false,var->nFontStyle == Style_Bold);
         }
         catch (std::exception &e)
         {
@@ -2671,19 +2673,19 @@ int  QEvolisPrinter::SendCommand(const char *lpCmdIn,LPVOID &lpCmdOut,char *pszR
 //    }
 
 //}
-void QEvolisPrinter::AddText(char *szText,int nAngle, float fxPos, float fyPos, int nFontSize, int nColor)
-{
-    TextInfoPtr inTextInfo = std::make_shared<TextInfo>();
-    char szUtf8[256] = {0};
+//void QEvolisPrinter::AddText(char *szText,int nAngle, float fxPos, float fyPos, int nFontSize, int nColor)
+//{
+//    TextInfoPtr inTextInfo = std::make_shared<TextInfo>();
+//    char szUtf8[256] = {0};
 
-    inTextInfo->sText = szText;
-    inTextInfo->nAngle = nAngle;
-    inTextInfo->fxPos = fxPos;
-    inTextInfo->fyPos = fyPos;
-    inTextInfo->pFontName = ":/Sumsun.ttf";
-    inTextInfo->nFontSize = nFontSize;
-    inTextInfo->nFontStyle = 1;
-    inTextInfo->nColor = nColor;
-    inTextInfo->nType = 0;  //文字是0
-    m_textInfo.push_back(inTextInfo);
-}
+//    inTextInfo->sText = szText;
+//    inTextInfo->nAngle = nAngle;
+//    inTextInfo->fxPos = fxPos;
+//    inTextInfo->fyPos = fyPos;
+//    inTextInfo->pFontName = ":/Sumsun.ttf";
+//    inTextInfo->nFontSize = nFontSize;
+//    inTextInfo->nFontStyle = 1;
+//    inTextInfo->nColor = nColor;
+//    inTextInfo->nType = 0;  //文字是0
+//    m_textInfo.push_back(inTextInfo);
+//}
