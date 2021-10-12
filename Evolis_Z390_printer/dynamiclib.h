@@ -6,6 +6,7 @@
 
 class DynamicLib
 {
+public:
     void *pHandle = nullptr;
 public:
     DynamicLib()

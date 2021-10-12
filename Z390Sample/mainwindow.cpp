@@ -409,7 +409,7 @@ void MainWindow::Printer_ICPowerOn()
     }
     else
     {
-        OutputMsg("Print_IcPowerOn Succeed!");
+        OutputMsg("Print_IcPowerOn Succeed:%s",szout);
     }
 }
 
@@ -513,13 +513,13 @@ void MainWindow::Printer_ICExchange(const char *szCmd)
     // szCmd 类似“00A404000F7378312E73682EC9E7BBE1B1A3D5CF”的明文HexString
     HexString2Binary((unsigned char *)szCmd,strlen(szCmd),(unsigned char *)szBinary,512,0);// 转为binary数据
     unsigned char szCommand[32] = {0};
-    szCommand[0] = 0x00;
-    szCommand[1] = 0x84;
-    szCommand[2] = 0x00;
-    szCommand[3] = 0x00;
-    szCommand[4] = 0x08;
+//    szCommand[0] = 0x00;
+//    szCommand[1] = 0x84;
+//    szCommand[2] = 0x00;
+//    szCommand[3] = 0x00;
+//    szCommand[4] = 0x08;
 
-    int nCmdLen = 5;
+//    int nCmdLen = 5;
     if (pPrinterInstance->Print_IcExchange(lTimeout,(unsigned char *)szBinary,strlen(szCmd)/2,(unsigned char *)szOut,nOutLen,szRCode))
     //if (pPrinterInstance->Print_IcExchange(lTimeout,(unsigned char *)szCommand,nCmdLen,(unsigned char *)szOut,nOutLen,szRCode))
         OutputMsg("Print_IcExchange Failed!");
@@ -580,7 +580,10 @@ void MainWindow::on_pushButton_ExtraCommand_clicked()
         }
         else
         {
-            OutputMsg("Print_ExtraCommand succeed:%s",szRCode);
+            if (strlen((char *)szCommandout) > 0)
+                OutputMsg("Print_ExtraCommand succeed:%s",(char *)szCommandout);
+            else
+                OutputMsg("Print_ExtraCommand succeed!");
         }
     }
     //Result(x,pPrinterInstance->Print_IcPowerOff(lTimeout, szRCode));

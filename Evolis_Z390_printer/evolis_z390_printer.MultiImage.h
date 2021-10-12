@@ -8,7 +8,7 @@
 #include <vector>
 #include <memory>
 #include <thread>
-#include "decardlib.h"
+#include "ReaderDecard.h"
 #include "evolislib.h"
 #include "QEvolisPrinter.h"
 
@@ -435,7 +435,7 @@ public:
 
         volatile bool bThreadRun;
         QEvolisPrinter  *pEvolisPriner = nullptr;
-        decardLib *pDecardlib = nullptr;
+        ReaderDecard *pReader = nullptr;
 };
 
 #endif // EVOLIS_Z390_PRINTER_H

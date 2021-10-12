@@ -19,7 +19,8 @@ SOURCES += \
     tinyxml/tinystr.cpp \
     tinyxml/tinyxml.cpp \
     tinyxml/tinyxmlerror.cpp \
-    tinyxml/tinyxmlparser.cpp
+    tinyxml/tinyxmlparser.cpp \
+    readerbase.cpp
 
 HEADERS += \
     AES.h \
@@ -32,8 +33,10 @@ HEADERS += \
     tinyxml/tinystr.h \
     tinyxml/tinyxml.h \
     evolis_z390_printer.h \    
-    decardlib.h \
     dynamiclib.h \
+    readerbase.h \
+    readerMinhua.h \
+    readerdecard.h
 
 
 # Default rules for deployment.
@@ -54,10 +57,9 @@ DEPENDPATH += $$PWD/../SDK/Lib
 
 INCLUDEPATH += $$PWD/opencv/include
 
-
+QMAKE_CXXFLAGS += -Wl,-rpath=./
 QMAKE_CXXFLAGS += -Wno-unused-parameter
 QMAKE_CXXFLAGS += -Wno-unused-variable
-
 
 
 unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lopencv_world

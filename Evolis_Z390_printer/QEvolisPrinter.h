@@ -14,7 +14,7 @@
 #include "../sdk/evolis/include/evolis_def.h"
 #include <string>
 using namespace std;
-#define LibVer     "Z390_kylin_aarch64_1.0.1.4 "
+#define LibVer     "Z390_kylin_aarch64_1.0.1.5 "
 struct myFontInfo
 {
     string strPath;

@@ -80,57 +80,58 @@ extern "C"
 
 #include <iconv.h>
 
-int code_convert(char *from_charset,char *to_charset,char *inbuf,size_t inlen,char *outbuf,size_t outlen)
-{
-    iconv_t cd;
-    int rc;
-    char **pin = &inbuf;
-    char **pout = &outbuf;
 
-    cd = iconv_open(to_charset,from_charset);
-    if (cd==0)
-        return -1;
-    if (iconv(cd,pin,&inlen,pout,&outlen)==-1)
-        return -1;
-    iconv_close(cd);
-    return 0;
-}
+    int code_convert(char *from_charset,char *to_charset,char *inbuf,size_t inlen,char *outbuf,size_t outlen)
+    {
+        iconv_t cd;
+        int rc;
+        char **pin = &inbuf;
+        char **pout = &outbuf;
 
-// utf8码转为GB2312码
-int UTF8_GB2312(char *inbuf,int inlen,char *outbuf,int outlen)
-{
-    return code_convert("utf-8","gb2312",inbuf,inlen,outbuf,outlen);
-}
+        cd = iconv_open(to_charset,from_charset);
+        if (cd==0)
+            return -1;
+        if (iconv(cd,pin,&inlen,pout,&outlen)==-1)
+            return -1;
+        iconv_close(cd);
+        return 0;
+    }
 
-// GB2312码转为utf8
-int GB2312_UTF8(char *inbuf,size_t inlen,char *outbuf,size_t outlen)
-{
-    return code_convert("gb2312","utf-8",inbuf,inlen,outbuf,outlen);
-}
+    // utf8码转为GB2312码
+    int UTF8_GB2312(char *inbuf,int inlen,char *outbuf,int outlen)
+    {
+        return code_convert("utf-8","gb2312",inbuf,inlen,outbuf,outlen);
+    }
 
-// utf8转为gbk
-string Utf8_GBK(const char *inbuf)
-{
-    int inlen=strlen(inbuf);
-    string strRet;
-    strRet.resize(inlen*2+2);
-    if(code_convert("utf-8","gbk",const_cast<char *>(inbuf),inlen,&strRet[0],strRet.size()))
-        return inbuf;
-    return strRet;
-}
+    // GB2312码转为utf8
+    int GB2312_UTF8(char *inbuf,size_t inlen,char *outbuf,size_t outlen)
+    {
+        return code_convert("gb2312","utf-8",inbuf,inlen,outbuf,outlen);
+    }
 
-// gbk转为utf8
-string GBK_Utf8(const char *inbuf)
-{
-    int inlen=strlen(inbuf);
-    string strRet;
-    strRet.resize(inlen*2+2);
-    if(code_convert("gbk","utf-8",const_cast<char *>(inbuf),inlen,&strRet[0],strRet.size()))
-        return inbuf;
-    return strRet;
-}
+    // utf8转为gbk
+    string Utf8_GBK(const char *inbuf)
+    {
+        int inlen=strlen(inbuf);
+        string strRet;
+        strRet.resize(inlen*2+2);
+        if(code_convert("utf-8","gbk",const_cast<char *>(inbuf),inlen,&strRet[0],strRet.size()))
+            return inbuf;
+        return strRet;
+    }
 
-void ClearLog(QString strPath,int nDays = 30)
+    // gbk转为utf8
+    string GBK_Utf8(const char *inbuf)
+    {
+        int inlen=strlen(inbuf);
+        string strRet;
+        strRet.resize(inlen*2+2);
+        if(code_convert("gbk","utf-8",const_cast<char *>(inbuf),inlen,&strRet[0],strRet.size()))
+            return inbuf;
+        return strRet;
+    }
+
+    void ClearLog(QString strPath,int nDays = 30)
 {
     QStringList filters;
     filters << "*.log";
@@ -206,104 +207,6 @@ void ClearLog(QString strPath,int nDays = 30)
             pFilelog->write("Try to Deallocate Evolis_Z390_Printer!");
         delete pFilelog;
         pFilelog = nullptr;
-    }
-
-    void HexStrToByte(const char* source,unsigned char* dest, int sourceLen)
-    {
-        short i;
-        unsigned char highByte, lowByte;
-
-        for (i = 0; i < sourceLen; i += 2)
-        {
-            highByte = toupper(source[i]);
-            lowByte = toupper(source[i + 1]);
-
-            if (highByte > 0x39)
-                highByte -= 0x37;
-            else
-                highByte -= 0x30;
-
-            if (lowByte > 0x39)
-                lowByte -= 0x37;
-            else
-                lowByte -= 0x30;
-
-            dest[i / 2] = (highByte << 4) | lowByte;
-        }
-        return ;
-    }
-
-    //把a转换为Hex字符
-    #define TOHEXA(a, b) {*b++ = chHexTableA[a >> 4]; *b++ = chHexTableA[a & 0xf];}
-    /*
-     功能描述		内存数据转换为16进制ASCII字符串
-     pHex			输入数据流
-     nHexLen		输入数据流长度
-     szAscString	输出16进制ASCII字符串缓冲区
-     nBuffLen		输出缓冲区最大长度
-     返回值		<0时 输入参数不合法
-                    >0 返回转换后的ASCII符串的长度
-    */
-    int Binary2Hexstring(unsigned char *pBinary,int nHexLen, unsigned char *szHexString,int nBuffLen,CHAR chSeperator)
-    {
-        static const  char chHexTableA[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-        if (!pBinary ||
-            !szHexString||
-            !nBuffLen)
-            return -1;
-        unsigned char nMult = 3;
-        if (chSeperator == '\0')
-            nMult = 2;
-        if (nHexLen*nMult > nBuffLen)
-            return -1;
-        unsigned char *p = &szHexString[0];
-
-        int n;
-        for (n = 0; n < nHexLen ; n++)
-        {
-            TOHEXA(pBinary[n], p);
-            if (nMult == 2)
-                continue;
-            *p++ = chSeperator;
-        }
-        return n*nMult;
-    }
-
-#define		Char2DigitA(ch)	(ch > '9'?(ch - 'A' + 10):ch - '0')
-#define		UpcasecharA(ch)	( ch >= 'A'?ch:(ch - 'a' + 'A'))
-    /*
-     功能描述			16进制ASCII字符串转为用内存数据
-     szAscString		输入16进制ASCII字符串
-     nAscStringLen	输入数据长度
-     pHex				输出缓冲区
-     nBuffLen			输出缓冲区最大长度
-     返回值			<0时 输入参数不合法
-                        >0 返回转换后pHex数据的长度
-    */
-    int HexString2Binary(unsigned char* pHexBuffer, int nHexBuffLen,unsigned char* szBinary, int nBinaryLen,  CHAR chSeperator)
-    {
-        if (!szBinary ||
-            !pHexBuffer ||
-            !nHexBuffLen)
-            return -1;
-        unsigned char nMult = 3;
-        if (chSeperator == '\0')
-            nMult = 2;
-
-        if (nBinaryLen * nMult < nHexBuffLen)
-            return -1;
-
-        int nCount = 0;
-        CHAR ch;
-        for (int i = 0; i < nHexBuffLen; i += nMult)
-        {
-            ch = UpcasecharA(pHexBuffer[i]);
-            unsigned char nHi = Char2DigitA(ch);
-            ch = UpcasecharA(pHexBuffer[i + 1]);
-            unsigned char nLo = Char2DigitA(ch);
-            szBinary[nCount++] = (nHi & 0x0F) << 4 | (nLo & 0x0F);
-        }
-        return nCount;
     }
 
     //system函数扩展，加入超时值(0表示永久等待)
@@ -508,24 +411,22 @@ void ClearLog(QString strPath,int nDays = 30)
     {
         RunlogF("Prepare QEvolisPrinter.\n");
         pEvolisPriner = new QEvolisPrinter();
-        pDecardlib = new decardLib();
+        pReader = shared_ptr <ReaderBase>(CreateReader());
         //InitializeFont();
     }
 
     Evolis_Z390_Printer::~Evolis_Z390_Printer()
     {
         Funclog();
-        if (m_hReader)
+        if (pReader)
         {
-            pDecardlib->pdc_exit(m_hReader);
-            m_hReader = 0;
+            pReader = nullptr;
         }
         if (cpOutMsg)
             delete []cpOutMsg;
 
         //pEvolisPriner->Exit();
         delete pEvolisPriner;
-        delete pDecardlib;
     }
 
     /** @ingroup CLithographPrinter Function declaration
@@ -538,10 +439,16 @@ void ClearLog(QString strPath,int nDays = 30)
     int Evolis_Z390_Printer::Print_Open(char* pPort, char* pPortParam, char* pszRcCode)
     {
         Funclog()
-        if (m_hReader)
-            pDecardlib->pdc_exit(m_hReader);
-        m_hReader = pDecardlib->pdc_init(100,115200);
-        if (!m_hReader)
+        if (!pReader)
+        {
+            strcpy(pszRcCode, "0001");  // 打开读卡器失败
+            RunlogF("Failed in detect reader.\n");
+            return 1;
+        }
+        else
+            pReader->CloseDev();
+
+        if (!pReader->OpenDev(nullptr,0,nullptr))
         {
             strcpy(pszRcCode, "0001");  // 打开读卡器失败
             RunlogF("Failed in dc_init.\n");
@@ -572,10 +479,9 @@ void ClearLog(QString strPath,int nDays = 30)
     int Evolis_Z390_Printer::Print_Close(char* pszRcCode)
     {
         Funclog()
-        if (m_hReader)
+        if (pReader)
         {
-            pDecardlib->pdc_exit(m_hReader);
-            m_hReader = 0;
+            pReader = nullptr;
         }
         if (pEvolisPriner)
             return pEvolisPriner->Close(pszRcCode);
@@ -595,8 +501,8 @@ void ClearLog(QString strPath,int nDays = 30)
     int Evolis_Z390_Printer::Print_Reset(long lTimeout, int nResetAction, char* pszRcCode)
     {
         Funclog();
-        if (m_hReader)
-            pDecardlib->pdc_reset(m_hReader, lTimeout);
+        if (pReader)
+            pReader->Reset(lTimeout);
          if (pEvolisPriner)
              return pEvolisPriner->Reset(lTimeout,nResetAction,pszRcCode);
          else
@@ -749,20 +655,20 @@ void ClearLog(QString strPath,int nDays = 30)
         Q_UNUSED(nUidLen);
         Funclog();
 
-        if (m_hReader)
+        if (pReader)
         {
-			//IC卡上电
-		 // 设置用户卡座
-            if (pDecardlib->pdc_setcpu(m_hReader, 0x0C))
+            // IC卡上电
+            // 设置用户卡座
+            if (pReader->SetCardSlot(0x0))
 			{
                 strcpy(pszRcCode, "0019");
                 RunlogF("设置卡座失败.\n");
 				return 1;
 			}
-			long ret = 0;
+            int ret = 0;
 			char dataBuffer[1024] = { 0 };
 
-            if (pDecardlib->pdc_cpureset_hex(m_hReader, (unsigned char*)&ret, dataBuffer))
+            if (pReader->PowerOn(dataBuffer,ret ))
 			{
                 strcpy(pszRcCode, "0019");
                 RunlogF("CPU卡复位失败.\n");
@@ -788,8 +694,9 @@ void ClearLog(QString strPath,int nDays = 30)
     {
         Q_UNUSED(lTimeout);
         Funclog();
-        if (m_hReader)
-            dc_cpudown(m_hReader);
+        if (pReader)
+            pReader->PowerOff();
+
         strcpy(pszRcCode, "0000");
         return 0;
     }
@@ -807,7 +714,7 @@ void ClearLog(QString strPath,int nDays = 30)
     {
         Q_UNUSED(lTimeout);
         Funclog();
-        if (!m_hReader)
+        if (!pReader)
         {
             strcpy(pszRcCode, "0003");
             return 1;
@@ -817,8 +724,8 @@ void ClearLog(QString strPath,int nDays = 30)
         Binary2Hexstring(byIndata,nInDataLen,szBuffer,256,0);
         RunlogF("byIndata[%d] = %s.",nInDataLen,szBuffer);
         uint nRecvLen = 0;
-        RunlogF("Try to dc_cpuapduInt(%s).\n",byIndata);
-        short nRet = pDecardlib->pdc_cpuapduInt(m_hReader, nInDataLen, (char *)byIndata,&nRecvLen, (char *)pOutData);
+        RunlogF("Try to ApduInt(%s).\n",byIndata);
+        int nRet = pReader->ApduInt((char *)byIndata,nInDataLen, (char *)pOutData, nRecvLen);
         if (nRet < 0)
         {
             RunlogF("Failed in dc_cpuapduInt,return:%d.\n",nRet);
@@ -1100,17 +1007,17 @@ void ClearLog(QString strPath,int nDays = 30)
     };
 
 
-   bool Evolis_Z390_Printer::RunApdu(DEVHANDLE hReader, string cmd,string &OutMsg)
+   bool Evolis_Z390_Printer::RunApdu(string cmd,string &OutMsg)
 	{
         Funclog();
         char dataBuff[4096] = { 0 };
         OutMsg = "";
-		if (!hReader)
+        if (!pReader)
             return false;
 
         uint nRecvLen = 0;
         RunlogF("Try to dc_cpuapduInt_hex(%s).\n",cmd.c_str());
-        short nRet = pDecardlib->pdc_cpuapduInt_hex(m_hReader, cmd.length() / 2, (char *)(char*)cmd.c_str(),&nRecvLen, (char *)dataBuff);
+        short nRet = pReader->ApduInt((char*)cmd.c_str(),cmd.length() / 2, (char *)dataBuff, nRecvLen);
         if (nRet <0)
         {
             RunlogF("Failed in dc_cpuapduInt_hex,return:%d.\n",nRet);
@@ -1199,21 +1106,21 @@ void ClearLog(QString strPath,int nDays = 30)
 		string msg;
 		cmd = "";
 		memset(dataBuff, 0x00, 1024);
-        if (!RunApdu(m_hReader, "00A404000E315041592E5359532E4444463031",msg))
+        if (!RunApdu( "00A404000E315041592E5359532E4444463031",msg))
         {
             strcpy(pszRcCode, "0020");
             RunlogF("RunApdu Failed.\n");
             return 1;
         }
 
-        if (!RunApdu(m_hReader, "00A4040008A000000333010101",msg))
+        if (!RunApdu( "00A4040008A000000333010101",msg))
 		{
             strcpy(pszRcCode, "0020");
             RunlogF("RunApdu Failed.\n");
 			return 1;
         }
 
-        if (!RunApdu(m_hReader, "00B2011400",msg))
+        if (!RunApdu( "00B2011400",msg))
         {
             strcpy(pszRcCode, "0020");
             RunlogF("RunApdu Failed.\n");
@@ -1293,7 +1200,7 @@ void ClearLog(QString strPath,int nDays = 30)
             strCmd += szTag;                // -->00 B2 01 0C
             strCmd += "00";                 // -->00 B2 01 0C 00
             string strBuffer;
-            if (!RunApdu(m_hReader,strCmd,strBuffer))
+            if (!RunApdu(strCmd,strBuffer))
             {
                 RunlogF("Failed RunApdu(%s).\n",strCmd.c_str());
                 return false;
@@ -1305,16 +1212,34 @@ void ClearLog(QString strPath,int nDays = 30)
     }
     int Evolis_Z390_Printer::ReadBankCard(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode)
     {
-        int nResult = 0;
-        if ((nResult = ReadBankCard1(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode)) == 0)
+//        int nResult = 0;
+//        if ((nResult = (lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode)) == 0)
+//        {
+//            return nResult;
+//        }
+//        else if ((nResult = ReadBankCard2(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode)) == 0)
+//            return nResult;
+//        else
+//        {
+//            strcpy(pszRcCode, "0020");
+//            return 1;
+//        }
+        if (!pReader)
         {
-            return nResult;
+            strcpy(pszRcCode, "0003");
+            return 1;
         }
-        else if ((nResult = ReadBankCard2(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode)) == 0)
-            return nResult;
+        char szBankCardNo[128] = {0};
+        if (pReader->GetBankcardNo((unsigned char *)szBankCardNo) == 0)
+        {
+            m_CardInfo.bankNumber = szBankCardNo;
+            lpCmdOut = (LPVOID)m_CardInfo.bankNumber.c_str();
+            strcpy(pszRcCode, "0000");
+            return 0;
+        }
         else
         {
-             strcpy(pszRcCode, "0020");
+            strcpy(pszRcCode, "0020");
             return 1;
         }
     }
@@ -1333,14 +1258,14 @@ void ClearLog(QString strPath,int nDays = 30)
         string msg;
         cmd = "";
         memset(dataBuff, 0x00, 1024);
-        if (!RunApdu(m_hReader, "00A4040008A00000033301010100",msg))
+        if (!RunApdu( "00A4040008A00000033301010100",msg))
         {
             strcpy(pszRcCode, "0020");
             RunlogF("RunApdu Failed.\n");
             return 1;
         }
 
-        if (!RunApdu(m_hReader, "80A800000B830900000000000000015600",msg))
+        if (!RunApdu( "80A800000B830900000000000000015600",msg))
         {
             strcpy(pszRcCode, "0020");
             RunlogF("RunApdu Failed.\n");
@@ -1423,19 +1348,19 @@ void ClearLog(QString strPath,int nDays = 30)
 		}
 		m_CardInfo.ATR = CardATR.substr(8, 26);
 
-        CheckResult(RunApdu(m_hReader, "00A404000F7378312E73682EC9E7BBE1B1A3D5CF",msg));
+        CheckResult(RunApdu( "00A404000F7378312E73682EC9E7BBE1B1A3D5CF",msg));
 
-        CheckResult(RunApdu(m_hReader, "00A4000002EF05",msg));
+        CheckResult(RunApdu( "00A4000002EF05",msg));
 
-        CheckResult(RunApdu(m_hReader, "00B2010400",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
+        CheckResult(RunApdu( "00B2010400",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
 
 		m_CardInfo.identifyNum = msg.substr(4, msg.length() - 8);
 		m_CardInfo.regionCode = m_CardInfo.identifyNum.substr(0, 6);
 
-        CheckResult(RunApdu(m_hReader, "00B2030400",msg));//初始化机构编号 0304 332E3030 9000
+        CheckResult(RunApdu( "00B2030400",msg));//初始化机构编号 0304 332E3030 9000
 
 		char cas[64] = { 0 };
-        pDecardlib->pa_hex((unsigned char*)msg.substr(4, msg.length() - 4 - 4).c_str(), (unsigned char*)cas, msg.length());
+        pReader->a_hex((unsigned char*)msg.substr(4, msg.length() - 4 - 4).c_str(), (unsigned char*)cas, msg.length());
 		m_CardInfo.cardVersion = cas;
         if (m_CardInfo.cardVersion.substr(0, 1) == "1")
             m_CardInfo.cardVersion = "1.00";
@@ -1445,10 +1370,10 @@ void ClearLog(QString strPath,int nDays = 30)
             m_CardInfo.cardVersion = "3.00";
 		else m_CardInfo.cardVersion = "3.00";
 
-        if (!RunApdu(m_hReader, "0084000008",random1)||
-            !RunApdu(m_hReader, "0084000008",random2)||
-            !RunApdu(m_hReader, "0084000008",random3)||
-            !RunApdu(m_hReader, "0084000008",random4))
+        if (!RunApdu( "0084000008",random1)||
+            !RunApdu( "0084000008",random2)||
+            !RunApdu( "0084000008",random3)||
+            !RunApdu( "0084000008",random4))
 		{
 			strcpy(pszRcCode, "0002");
 			return 1;
@@ -1522,41 +1447,41 @@ void ClearLog(QString strPath,int nDays = 30)
 		}
 		result2 = temp;
 		cmd = "0082000A10" + result2;
-        CheckResult(RunApdu(m_hReader, cmd,msg))//外部认证
+        CheckResult(RunApdu( cmd,msg))//外部认证
 
         cmd = "00B2070400";
-        CheckResult(RunApdu(m_hReader, cmd,msg));//外部认证
+        CheckResult(RunApdu( cmd,msg));//外部认证
 
 		m_CardInfo.cardNumber = msg.substr(4, msg.length() - 4 - 4);
 		checkName(m_CardInfo.cardNumber, "0", "");
-        pDecardlib->phex_a((unsigned char*)m_CardInfo.cardNumber.c_str(), (unsigned char*)temp, m_CardInfo.cardNumber.length());
+        pReader->hex_a((unsigned char*)m_CardInfo.cardNumber.c_str(), (unsigned char*)temp, m_CardInfo.cardNumber.length());
 
 		tempCardNumber = temp;
-        CheckResult(RunApdu(m_hReader, "00A4000002EF06",msg));//外部认证
+        CheckResult(RunApdu( "00A4000002EF06",msg));//外部认证
 
         cmd = "00B2010400";
-        CheckResult(RunApdu(m_hReader, cmd,msg));//外部认证
+        CheckResult(RunApdu( cmd,msg));//外部认证
 
 		memset(temp, 0x00, 1024);
 		string cardID = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)cardID.c_str(), (unsigned char*)temp, cardID.length());
+        pReader->a_hex((unsigned char*)cardID.c_str(), (unsigned char*)temp, cardID.length());
 		cardID = temp;
 		m_CardInfo.cardID = cardID;
 		checkName(m_CardInfo.cardID, "0", "");
 
         cmd = "00B2020400";
-        CheckResult(RunApdu(m_hReader, cmd,msg));//外部认证
+        CheckResult(RunApdu( cmd,msg));//外部认证
 
 		memset(temp, 0x00, 1024);
 		string name = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)name.c_str(), (unsigned char*)temp, name.length());
+        pReader->a_hex((unsigned char*)name.c_str(), (unsigned char*)temp, name.length());
 		name = temp;
 		m_CardInfo.name = name;
 		checkName(m_CardInfo.name, "0", "");
 
-        CheckResult(RunApdu(m_hReader, "0084000008",originData));
+        CheckResult(RunApdu( "0084000008",originData));
 
-        CheckResult(RunApdu(m_hReader, "0084000008",disFactor));
+        CheckResult(RunApdu( "0084000008",disFactor));
 
 		cardInfo = "";
 		cardInfo += m_CardInfo.regionCode;		cardInfo += "|";
@@ -1686,17 +1611,17 @@ void ClearLog(QString strPath,int nDays = 30)
 		m_newInfos.birthday = temp;
 
         cmd = "0082000410" + result;
-        CheckResult(RunApdu(m_hReader, cmd,msg));
+        CheckResult(RunApdu( cmd,msg));
 
 		//写EF06数据
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempCardID.c_str(), (unsigned char*)temp, tempCardID.length());
+        pReader->hex_a((unsigned char*)tempCardID.c_str(), (unsigned char*)temp, tempCardID.length());
 		//m_newInfos.cardID = temp;
 		tempCardID = temp;
         //RunlogF(tempCardID.c_str());
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempName.c_str(), (unsigned char*)temp, tempName.length());
+        pReader->hex_a((unsigned char*)tempName.c_str(), (unsigned char*)temp, tempName.length());
 		//m_newInfos.name = temp;
 		tempName = temp;
         //RunlogF(tempName.c_str());
@@ -1708,24 +1633,24 @@ void ClearLog(QString strPath,int nDays = 30)
         //RunlogF(tempName.c_str());
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempSex.c_str(), (unsigned char*)temp, tempSex.length());
+        pReader->hex_a((unsigned char*)tempSex.c_str(), (unsigned char*)temp, tempSex.length());
 		tempSex = temp;
         //RunlogF(tempSex.c_str());
 
-        CheckResult(WriteFile(m_hReader, "01", "08", tempCardID.c_str(), msg));
+        CheckResult(WriteFile( "01", "08", tempCardID.c_str(), msg));
 
-        CheckResult(WriteFile(m_hReader, "02", "09", tempName.c_str(), msg));
+        CheckResult(WriteFile( "02", "09", tempName.c_str(), msg));
 
-        CheckResult(WriteFile(m_hReader, "04", "0A", tempSex.c_str(), msg));
+        CheckResult(WriteFile( "04", "0A", tempSex.c_str(), msg));
 
-        CheckResult(WriteFile(m_hReader, "05", "0B", m_newInfos.nation, msg));
+        CheckResult(WriteFile( "05", "0B", m_newInfos.nation, msg));
 
-        CheckResult(WriteFile(m_hReader, "07", "0D", m_newInfos.birthday, msg));
+        CheckResult(WriteFile( "07", "0D", m_newInfos.birthday, msg));
 
-        CheckResult(RunApdu(m_hReader, "0084000008",msg));
+        CheckResult(RunApdu( "0084000008",msg));
         string disFactor = msg;
 
-        CheckResult(RunApdu(m_hReader, "0084000008",msg));
+        CheckResult(RunApdu( "0084000008",msg));
         string originData = msg;
 
 		string cardInfo = "";
@@ -1880,40 +1805,40 @@ void ClearLog(QString strPath,int nDays = 30)
 		}
 		string result = temp;
 
-        CheckResult(RunApdu(m_hReader, "00A4000002EF05",msg));//
+        CheckResult(RunApdu( "00A4000002EF05",msg));//
 
-        CheckResult(WriteFile(m_hReader, "01", "01", m_newInfos.identifyNum, msg));
+        CheckResult(WriteFile( "01", "01", m_newInfos.identifyNum, msg));
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)KLB.c_str(), (unsigned char*)temp, KLB.length());
+        pReader->hex_a((unsigned char*)KLB.c_str(), (unsigned char*)temp, KLB.length());
         KLB = temp;
-        CheckResult(WriteFile(m_hReader, "02", "02", KLB, msg));
+        CheckResult(WriteFile( "02", "02", KLB, msg));
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempCardVersion.c_str(), (unsigned char*)temp, tempCardVersion.length());
+        pReader->hex_a((unsigned char*)tempCardVersion.c_str(), (unsigned char*)temp, tempCardVersion.length());
 		tempCardVersion = temp;
 		transform(tempCardVersion.begin(), tempCardVersion.end(), tempCardVersion.begin(), ::toupper);
 
-        CheckResult(WriteFile(m_hReader, "03", "03", tempCardVersion, msg));
+        CheckResult(WriteFile( "03", "03", tempCardVersion, msg));
 
-        CheckResult(WriteFile(m_hReader, "04", "04", orgCode, msg));
+        CheckResult(WriteFile( "04", "04", orgCode, msg));
 
-        CheckResult(WriteFile(m_hReader, "05", "05", m_newInfos.cardReleaseDate, msg));
+        CheckResult(WriteFile( "05", "05", m_newInfos.cardReleaseDate, msg));
 
-        CheckResult(WriteFile(m_hReader, "06", "06", m_newInfos.cardValidDate, msg));
+        CheckResult(WriteFile( "06", "06", m_newInfos.cardValidDate, msg));
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempcardNumber.c_str(), (unsigned char*)temp, tempcardNumber.length());
+        pReader->hex_a((unsigned char*)tempcardNumber.c_str(), (unsigned char*)temp, tempcardNumber.length());
         tempcardNumber = temp;
-        CheckResult(WriteFile(m_hReader, "07", "07", tempcardNumber, msg));
+        CheckResult(WriteFile( "07", "07", tempcardNumber, msg));
 
-        CheckResult(RunApdu(m_hReader, "0084000008",msg));
+        CheckResult(RunApdu( "0084000008",msg));
         string random1 = msg;
-        CheckResult(RunApdu(m_hReader, "0084000008",msg));
+        CheckResult(RunApdu( "0084000008",msg));
         string random2 = msg;
-        CheckResult(RunApdu(m_hReader, "0084000008",msg));
+        CheckResult(RunApdu( "0084000008",msg));
         string random3 = msg;
-        CheckResult(RunApdu(m_hReader, "0084000008",msg));
+        CheckResult(RunApdu( "0084000008",msg));
         string random4 = msg;
 
 		string retMsg = "<ROOT>"
@@ -1975,48 +1900,48 @@ void ClearLog(QString strPath,int nDays = 30)
 		}
 		string result2 = temp;
 
-        CheckResult(RunApdu(m_hReader, "00B2010400",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
+        CheckResult(RunApdu( "00B2010400",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
 
 		string identifyNumber = msg.substr(4, msg.length() - 8);
 		string regionCode = identifyNumber.substr(0, 6);
 
-        CheckResult(RunApdu(m_hReader, "00B2030400",msg));//初始化机构编号 0304 332E3030 9000
+        CheckResult(RunApdu( "00B2030400",msg));//初始化机构编号 0304 332E3030 9000
 		string version = "";
 
 		char cas[64] = { 0 };
-        pDecardlib->pa_hex((unsigned char*)msg.substr(4, msg.length() - 4 - 4).c_str(), (unsigned char*)cas, msg.length());
+        pReader->a_hex((unsigned char*)msg.substr(4, msg.length() - 4 - 4).c_str(), (unsigned char*)cas, msg.length());
 		version = cas;
 		if (version.substr(0, 1) == "1")version = "1.00";
 		else if (version.substr(0, 1) == "2")version = "2.00";
 		else if (version.substr(0, 1) == "3")version = "3.00";
 		else version = "3.00";
 
-        CheckResult(RunApdu(m_hReader, "00B2050400",msg));//
+        CheckResult(RunApdu( "00B2050400",msg));//
 		string releaseDate = msg.substr(4, msg.length() - 4 - 4);
 
-        CheckResult(RunApdu(m_hReader, "00B2060400",msg));//
+        CheckResult(RunApdu( "00B2060400",msg));//
 		string validDate = msg.substr(4, msg.length() - 4 - 4);
 
-        CheckResult(RunApdu(m_hReader, "00B2070400",msg));
+        CheckResult(RunApdu( "00B2070400",msg));
 		memset(temp, 0x00, 1024);
 		string cardNumber = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)cardNumber.c_str(), (unsigned char*)temp, cardNumber.length());
+        pReader->a_hex((unsigned char*)cardNumber.c_str(), (unsigned char*)temp, cardNumber.length());
 		cardNumber = temp;
 
-        CheckResult(RunApdu(m_hReader, "00A4000002EF06",msg));//
+        CheckResult(RunApdu( "00A4000002EF06",msg));//
 
-        CheckResult(RunApdu(m_hReader, "00B2010400",msg));//
+        CheckResult(RunApdu( "00B2010400",msg));//
 
 		memset(temp, 0x00, 1024);
 		string cardID = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)cardID.c_str(), (unsigned char*)temp, cardID.length());
+        pReader->a_hex((unsigned char*)cardID.c_str(), (unsigned char*)temp, cardID.length());
 		cardID = temp;
 
-        CheckResult(RunApdu(m_hReader, "00B2020400",msg));//
+        CheckResult(RunApdu( "00B2020400",msg));//
 
 		memset(temp, 0x00, 1024);
 		string name = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)name.c_str(), (unsigned char*)temp, name.length());
+        pReader->a_hex((unsigned char*)name.c_str(), (unsigned char*)temp, name.length());
 		name = temp;
 
 		string cardInfo = "";			//cardInfo += "|";
@@ -2072,13 +1997,13 @@ void ClearLog(QString strPath,int nDays = 30)
 			return 1;
 		}
         string userPIN = temp;//00A404000C504B492EC9E7BBE1B1A3D5CF
-        CheckResult(RunApdu(m_hReader, "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
+        CheckResult(RunApdu( "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
 
-        CheckResult(RunApdu(m_hReader, "00A404000C53532E434552542E41444631",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
+        CheckResult(RunApdu( "00A404000C53532E434552542E41444631",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
 
-        CheckResult(RunApdu(m_hReader, "00A40000020012",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
+        CheckResult(RunApdu( "00A40000020012",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
 
-        CheckResult(RunApdu(m_hReader, "00B0000042",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
+        CheckResult(RunApdu( "00B0000042",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
 
 		string signatureKey = msg.substr(4, msg.length() - 8);
 		string retMsg = "<ROOT>" + CreateNode("QMGY", signatureKey) + "</ROOT>";
@@ -2250,7 +2175,7 @@ void ClearLog(QString strPath,int nDays = 30)
 		sprintf(tempLog, "%d", Base64Len);
 
 		memset(temp, 0x00, 102400);
-        pDecardlib->phex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        pReader->hex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
 		QMZS = temp;
         //RunlogF(QMZS.c_str());
 
@@ -2265,7 +2190,7 @@ void ClearLog(QString strPath,int nDays = 30)
 			return 1;
 		}
 		memset(temp, 0x00, 102400);
-        pDecardlib->phex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        pReader->hex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
 		JMZS = temp;
         //RunlogF(JMZS.c_str());
 
@@ -2280,7 +2205,7 @@ void ClearLog(QString strPath,int nDays = 30)
 			return 1;
 		}
 		memset(temp, 0x00, 102400);
-        pDecardlib->phex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        pReader->hex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
 		JMMY = temp;
         //RunlogF(JMMY.c_str());
 
@@ -2293,15 +2218,15 @@ void ClearLog(QString strPath,int nDays = 30)
 
 		//return 1;
 #if 1
-        CheckResult( RunApdu(m_hReader, "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //
+        CheckResult( RunApdu( "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //
 
-        CheckResult(RunApdu(m_hReader, "00A404000C53532E434552542E41444631",msg)); //
+        CheckResult(RunApdu( "00A404000C53532E434552542E41444631",msg)); //
 
         cmd = "80C4010305C103" + UPIN + "00";
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //"3DE741F445DD357BEA4E6C3FE6437036F62B5E3EC0F00D62796EDB4305ED627F9000";
+        CheckResult(RunApdu( cmd,msg)); //"3DE741F445DD357BEA4E6C3FE6437036F62B5E3EC0F00D62796EDB4305ED627F9000";
 		HASH = msg.substr(0, msg.length() - 4);
 
-        CheckResult(RunApdu(m_hReader, "0084000010",msg));
+        CheckResult(RunApdu( "0084000010",msg));
 
 		if (msg.length() < 32 && HASH.length() < 32)
 		{
@@ -2326,14 +2251,14 @@ void ClearLog(QString strPath,int nDays = 30)
 		ENDDATA = sm4Key;
 
         cmd = "0020018110" + ENDDATA;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
 		//校验MPIN
         cmd = "80C4010306C104" + OLDGLYPIN + "00";
-        CheckResult(RunApdu(m_hReader, cmd,msg));
+        CheckResult(RunApdu( cmd,msg));
 
 		HASH = msg.substr(0, msg.length() - 4);
-        CheckResult(RunApdu(m_hReader, "0084000010",msg));
+        CheckResult(RunApdu( "0084000010",msg));
 
 		RAM = msg.substr(0, 32);
 		CTK = HASH.substr(0, 32);
@@ -2359,68 +2284,68 @@ void ClearLog(QString strPath,int nDays = 30)
 		ENDDATA = sm4Key;
 		cmd = "0020010010";
         cmd += ENDDATA;
-        CheckResult(RunApdu(m_hReader, cmd,msg));
+        CheckResult(RunApdu( cmd,msg));
 
 		//写CA        
-        CheckResult(WriteCA(m_hReader, "804E0001", "C2020013C18200", ENCRYPT, msg)); ////提供签名公钥给CA，返回后续写入内容
+        CheckResult(WriteCA( "804E0001", "C2020013C18200", ENCRYPT, msg)); ////提供签名公钥给CA，返回后续写入内容
 
 		string KEY = msg.substr(0, msg.length() - 4);
 
-        CheckResult(WriteCA(m_hReader, "804A0210", "C1", KEY, msg)); ////导入SM4 804A02 + 10 + L(C1 + L(KEY))
+        CheckResult(WriteCA( "804A0210", "C1", KEY, msg)); ////导入SM4 804A02 + 10 + L(C1 + L(KEY))
 
         cmd = "80C2400046C0020014CA40" + PUKEY;         //导入公钥 80C2400046+C0020014+CA40+PUKEY
-        CheckResult(RunApdu(m_hReader, cmd,msg));
+        CheckResult(RunApdu( cmd,msg));
 
         cmd = "80C2C00126C2020015CB20" + PRKEY;         //导入私钥 80C2C00126+C2020015+CB20+PRKEY
-        CheckResult(RunApdu(m_hReader, cmd,msg));
+        CheckResult(RunApdu( cmd,msg));
 
         //#region 写0018签名证书
-        CheckResult(RunApdu(m_hReader, "00A40000020018",msg)); //
+        CheckResult(RunApdu( "00A40000020018",msg)); //
 
         cmd = "00D6000070" + QMZS.substr(0, 224);;
-        CheckResult(RunApdu(m_hReader, cmd,msg));
+        CheckResult(RunApdu( cmd,msg));
 
         cmd = "00D6007070" + QMZS.substr(224, 224);;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
         cmd = "00D600E070" + QMZS.substr(448, 224);;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
         cmd = "00D6015070" + QMZS.substr(672, 224);;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
 		memset(temp, 0x00, 1024);
 		sprintf(temp, "%02X", QMZS.substr(896, QMZS.length() - 896).length() / 2);
 		cmd = "00D601C0";
 		cmd += temp;
         cmd += QMZS.substr(896, QMZS.length() - 896);
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
         //#region 写0019加密证书
-        CheckResult(RunApdu(m_hReader, "00A40000020019",msg)); //
+        CheckResult(RunApdu( "00A40000020019",msg)); //
 
         cmd = "00D6000070" + JMZS.substr(0, 224);;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
         cmd = "00D6007070" + JMZS.substr(224, 224);;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
         cmd = "00D600E070" + JMZS.substr(448, 224);;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
         cmd = "00D6015070" + JMZS.substr(672, 224);;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
 		memset(temp, 0x00, 102400);
 		sprintf(temp, "%02X", JMZS.substr(896, JMZS.length() - 896).length() / 2);
 		cmd = "00D601C0";
 		cmd += temp;
         cmd += JMZS.substr(896, JMZS.length() - 896);
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
 		//#region 修改MPIN
         //写0019加密证书
-        CheckResult(WriteCA(m_hReader, "80C40103", "C1", OLDGLYPIN, msg));
+        CheckResult(WriteCA( "80C40103", "C1", OLDGLYPIN, msg));
 
 		HASH = msg.substr(0, msg.length() - 4);
 		CTK = HASH.substr(0, 32);
@@ -2442,28 +2367,28 @@ void ClearLog(QString strPath,int nDays = 30)
 		}
 
 		ENDATA = sm4Key;
-        CheckResult(RunApdu(m_hReader, "0084000010",msg));
+        CheckResult(RunApdu( "0084000010",msg));
 
 		RAM = msg.substr(0, 32);
 		DATA = "845E010014" + ENDATA + "8000000000000000000000";
 		MAC = SM4_MAC(RAM, DATA, CTK);
         cmd = "845E010014" + ENDATA + MAC;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
         //#region UPDATE ADF MK
-        CheckResult(RunApdu(m_hReader, "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //
+        CheckResult(RunApdu( "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //
 
-        CheckResult(RunApdu(m_hReader, "00A404000C53532E434552542E41444631",msg)); //
+        CheckResult(RunApdu( "00A404000C53532E434552542E41444631",msg)); //
 
-        CheckResult(RunApdu(m_hReader, "0084000010",msg)); //
+        CheckResult(RunApdu( "0084000010",msg)); //
 
 		RAM = msg.substr(0, 32);
 		ENDATA = SM4Enc(OLDZKMY, RAM);
 
         cmd = "0082000010" + ENDATA;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
-        CheckResult(RunApdu(m_hReader, "0084000010",msg));
+        CheckResult(RunApdu( "0084000010",msg));
 
 		RAM = msg.substr(0, 32);
 
@@ -2472,19 +2397,19 @@ void ClearLog(QString strPath,int nDays = 30)
 		MAC = GetMAC(RAM, DATA, OLDZKMY);
 
         cmd = "84D4010024" + ENDATA + MAC;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
         //#region UPDATE DDF MK
-        CheckResult(RunApdu(m_hReader, "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //
+        CheckResult(RunApdu( "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //
 
-        CheckResult(RunApdu(m_hReader, "0084000010",msg)); //
+        CheckResult(RunApdu( "0084000010",msg)); //
 
 		RAM = msg.substr(0, 32);
 		ENDATA = SM4Enc(OLDZKMY, RAM);
         cmd = "0082000010" + ENDATA;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
-        CheckResult(RunApdu(m_hReader, "0084000010",msg)); //
+        CheckResult(RunApdu( "0084000010",msg)); //
 
 #endif // 0
 
@@ -2495,7 +2420,7 @@ void ClearLog(QString strPath,int nDays = 30)
 		MAC = GetMAC(RAM, DATA, OLDZKMY);
 
         cmd = "84D4010024" + ENDATA + MAC;
-        CheckResult(RunApdu(m_hReader, cmd,msg)); //
+        CheckResult(RunApdu( cmd,msg)); //
 
 		strcpy(pszRcCode, "0000");
 		return 0;
@@ -2779,7 +2704,7 @@ void ClearLog(QString strPath,int nDays = 30)
         return 0;
     }
 
-    bool Evolis_Z390_Printer::WriteFile(DEVHANDLE dcHandle, string fileID, string tag, string val,string &msg)
+    bool Evolis_Z390_Printer::WriteFile(string fileID, string tag, string val,string &msg)
 	{
         Funclog();
 		char valHex[32] = { 0 };
@@ -2788,14 +2713,14 @@ void ClearLog(QString strPath,int nDays = 30)
 		memset(valHex, 0x00, 32);
 		sprintf(valHex, "%02X", tlv.length() / 2);
         string cmd = "00DC" + fileID + "04" + valHex + tlv;
-        if(!RunApdu(dcHandle, cmd.c_str(),msg))
+        if(!RunApdu( cmd.c_str(),msg))
            return false;
         else  if ("9000" != msg.substr(msg.length() - 4, 4))
            return false;
        return true;
 	}
 
-    bool Evolis_Z390_Printer::WriteCA(DEVHANDLE dcHandle, string fileID, string tag, string val, string &msg)
+    bool Evolis_Z390_Printer::WriteCA(string fileID, string tag, string val, string &msg)
 	{
 		char valHex[32] = { 0 };
 		sprintf(valHex, "%02X", val.length() / 2);
@@ -2803,7 +2728,7 @@ void ClearLog(QString strPath,int nDays = 30)
 		memset(valHex, 0x00, 32);
 		sprintf(valHex, "%02X", tlv.length() / 2);
         string cmd = fileID + valHex + tlv;;
-        if (!RunApdu(dcHandle, cmd,msg))
+        if (!RunApdu( cmd,msg))
            return false;
         else  if ("9000" != msg.substr(msg.length() - 4, 4))
             return false;

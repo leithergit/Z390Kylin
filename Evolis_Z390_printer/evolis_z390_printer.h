@@ -8,9 +8,10 @@
 #include <vector>
 #include <memory>
 #include <thread>
-#include "decardlib.h"
+#include "readerDecard.h"
 #include "evolislib.h"
 #include "QEvolisPrinter.h"
+#include "readerbase.h"
 
 //#include <QVector>
 using namespace std;
@@ -269,7 +270,7 @@ public:
 
         bool FindCard(string &strBuffer,string &strNumber);
 
-        bool RunApdu(DEVHANDLE dcHandle, string cmd,string &strOutmsg);
+        bool RunApdu(string cmd,string &strOutmsg);
         /** @ingroup CLithographPrinter Function declaration
           * @brief  扩展命令
           * @param[in] pCommand 命令字符串
@@ -318,8 +319,8 @@ public:
         bool GetNodePointerByName(void* pRootEle, const char* strNodeName, void*& Node);
 		string GetYYYYMMDD(char* pDate);
 
-        bool WriteFile(DEVHANDLE dcHandle, string fileID, string tag, string val, string &strOutmsg);
-        bool WriteCA(DEVHANDLE dcHandle, string fileID, string tag, string val,string &strOutmsg);
+        bool WriteFile( string fileID, string tag, string val, string &strOutmsg);
+        bool WriteCA( string fileID, string tag, string val,string &strOutmsg);
         string SM4Enc(string Key, string DATA);
         void hexstrxor(char* HexStr1, char* HexStr2, char* HexStr);
         string SM4_MAC(string RAM, string DATA, string CTK);
@@ -343,17 +344,7 @@ public:
         }
 
         const char* getPlatformABI();
-    private:
 
-        DEVHANDLE     m_hReader = 0;
-		string  CardATR;
-		CARDINFO m_CardInfo;
-		NEWCARDINFO m_newInfos;
-		string  cardInfo_temp;
-		char    seeionId[128];
-        string   m_strPicPath;
-        char*   cpOutMsg = new char[1024];
-        int     nOutMsgSize = 1024;
 
 
         /**
@@ -435,10 +426,21 @@ public:
          */
         //using dc_setcpu = short (*)(HANDLE icdev, unsigned char _Byte);
         //dc_setcpu pdc_setcpu = nullptr;
+private:
 
-        volatile bool bThreadRun;
-        QEvolisPrinter  *pEvolisPriner = nullptr;
-        decardLib *pDecardlib = nullptr;
+    //DEVHANDLE     m_hReader = 0;
+    string  CardATR;
+    CARDINFO m_CardInfo;
+    NEWCARDINFO m_newInfos;
+    string  cardInfo_temp;
+    char    seeionId[128];
+    string   m_strPicPath;
+    char*   cpOutMsg = new char[1024];
+    int     nOutMsgSize = 1024;
+    volatile bool bThreadRun;
+    QEvolisPrinter  *pEvolisPriner = nullptr;
+    ReaderPtr   pReader = nullptr;
+
 };
 
 #endif // EVOLIS_Z390_PRINTER_H

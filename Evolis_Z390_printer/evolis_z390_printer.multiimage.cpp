@@ -201,7 +201,7 @@ void FuncRunlog(const char* pFunction,int nLine)
     {
         RunlogF("Prepare QEvolisPrinter.\n");
         pEvolisPriner = new QEvolisPrinter();
-        pDecardlib = new decardLib();
+        pReader = new ReaderDecard();
     }
 
     Evolis_Z390_Printer::~Evolis_Z390_Printer()
@@ -209,7 +209,7 @@ void FuncRunlog(const char* pFunction,int nLine)
         Funclog();
         if (m_hReader)
         {
-            pDecardlib->pdc_exit(m_hReader);
+            pReader->pdc_exit(m_hReader);
             m_hReader = 0;
         }
         if (cpOutMsg)
@@ -217,7 +217,7 @@ void FuncRunlog(const char* pFunction,int nLine)
 
         pEvolisPriner->Exit();
         delete pEvolisPriner;
-        delete pDecardlib;
+        delete pReader;
     }
 
     /** @ingroup CLithographPrinter Function declaration
@@ -231,8 +231,8 @@ void FuncRunlog(const char* pFunction,int nLine)
     {
         Funclog()
         if (m_hReader)
-            pDecardlib->pdc_exit(m_hReader);
-        m_hReader = pDecardlib->pdc_init(100,115200);
+            pReader->pdc_exit(m_hReader);
+        m_hReader = pReader->pdc_init(100,115200);
         if (!m_hReader)
         {
             strcpy(pszRcCode, "0002");  // 打开读卡器失败
@@ -258,7 +258,7 @@ void FuncRunlog(const char* pFunction,int nLine)
         Funclog()
         if (m_hReader)
         {
-            pDecardlib->pdc_exit(m_hReader);
+            pReader->pdc_exit(m_hReader);
             m_hReader = 0;
         }
         if (pEvolisPriner)
@@ -280,7 +280,7 @@ void FuncRunlog(const char* pFunction,int nLine)
     {
         Funclog();
         if (m_hReader)
-            pDecardlib->pdc_reset(m_hReader, lTimeout);
+            pReader->pdc_reset(m_hReader, lTimeout);
          if (pEvolisPriner)
              return pEvolisPriner->On_Print_Reset(lTimeout,nResetAction,pszRcCode);
          else
@@ -434,7 +434,7 @@ void FuncRunlog(const char* pFunction,int nLine)
         {
 			//IC卡上电
 		 // 设置用户卡座
-            if (pDecardlib->pdc_setcpu(m_hReader, 0x0C))
+            if (pReader->pdc_setcpu(m_hReader, 0x0C))
 			{
 				strcpy(pszRcCode, "0002");
                 RunlogF("设置卡座失败.\n");
@@ -443,7 +443,7 @@ void FuncRunlog(const char* pFunction,int nLine)
 			long ret = 0;
 			char dataBuffer[1024] = { 0 };
 
-            if (pDecardlib->pdc_cpureset_hex(m_hReader, (unsigned char*)&ret, dataBuffer))
+            if (pReader->pdc_cpureset_hex(m_hReader, (unsigned char*)&ret, dataBuffer))
 			{
 				strcpy(pszRcCode, "0005");
                 RunlogF("CPU卡复位失败.\n");
@@ -497,7 +497,7 @@ void FuncRunlog(const char* pFunction,int nLine)
         uint nRecvLen = 0;
         int nInputlen = nInDataLen/2;
         RunlogF("Try to dc_cpuapduInt_hex(%s).\n",byIndata);
-        short nRet = pDecardlib->pdc_cpuapduInt_hex(m_hReader, nInputlen, (char *)byIndata,&nRecvLen, (char *)pOutData);
+        short nRet = pReader->pdc_cpuapduInt_hex(m_hReader, nInputlen, (char *)byIndata,&nRecvLen, (char *)pOutData);
         if (nRet < 0)
         {
             RunlogF("Failed in dc_cpuapduInt_hex,return:%d.\n",nRet);
@@ -715,7 +715,7 @@ void FuncRunlog(const char* pFunction,int nLine)
 
         uint nRecvLen = 0;
         RunlogF("Try to dc_cpuapduInt_hex(%s).\n",cmd.c_str());
-        short nRet = pDecardlib->pdc_cpuapduInt_hex(m_hReader, cmd.length() / 2, (char *)(char*)cmd.c_str(),&nRecvLen, (char *)dataBuff);
+        short nRet = pReader->pdc_cpuapduInt_hex(m_hReader, cmd.length() / 2, (char *)(char*)cmd.c_str(),&nRecvLen, (char *)dataBuff);
         if (nRet <0)
         {
             RunlogF("Failed in dc_cpuapduInt_hex,return:%d.\n",nRet);
@@ -1038,7 +1038,7 @@ void FuncRunlog(const char* pFunction,int nLine)
         CheckResult(RunApdu(m_hReader, "00B2030400",msg));//初始化机构编号 0304 332E3030 9000
 
 		char cas[64] = { 0 };
-        pDecardlib->pa_hex((unsigned char*)msg.substr(4, msg.length() - 4 - 4).c_str(), (unsigned char*)cas, msg.length());
+        pReader->pa_hex((unsigned char*)msg.substr(4, msg.length() - 4 - 4).c_str(), (unsigned char*)cas, msg.length());
 		m_CardInfo.cardVersion = cas;
         if (m_CardInfo.cardVersion.substr(0, 1) == "1")
             m_CardInfo.cardVersion = "1.00";
@@ -1132,7 +1132,7 @@ void FuncRunlog(const char* pFunction,int nLine)
 
 		m_CardInfo.cardNumber = msg.substr(4, msg.length() - 4 - 4);
 		checkName(m_CardInfo.cardNumber, "0", "");
-        pDecardlib->phex_a((unsigned char*)m_CardInfo.cardNumber.c_str(), (unsigned char*)temp, m_CardInfo.cardNumber.length());
+        pReader->phex_a((unsigned char*)m_CardInfo.cardNumber.c_str(), (unsigned char*)temp, m_CardInfo.cardNumber.length());
 
 		tempCardNumber = temp;
         CheckResult(RunApdu(m_hReader, "00A4000002EF06",msg));//外部认证
@@ -1142,7 +1142,7 @@ void FuncRunlog(const char* pFunction,int nLine)
 
 		memset(temp, 0x00, 1024);
 		string cardID = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)cardID.c_str(), (unsigned char*)temp, cardID.length());
+        pReader->pa_hex((unsigned char*)cardID.c_str(), (unsigned char*)temp, cardID.length());
 		cardID = temp;
 		m_CardInfo.cardID = cardID;
 		checkName(m_CardInfo.cardID, "0", "");
@@ -1152,7 +1152,7 @@ void FuncRunlog(const char* pFunction,int nLine)
 
 		memset(temp, 0x00, 1024);
 		string name = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)name.c_str(), (unsigned char*)temp, name.length());
+        pReader->pa_hex((unsigned char*)name.c_str(), (unsigned char*)temp, name.length());
 		name = temp;
 		m_CardInfo.name = name;
 		checkName(m_CardInfo.name, "0", "");
@@ -1293,13 +1293,13 @@ void FuncRunlog(const char* pFunction,int nLine)
 
 		//写EF06数据
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempCardID.c_str(), (unsigned char*)temp, tempCardID.length());
+        pReader->phex_a((unsigned char*)tempCardID.c_str(), (unsigned char*)temp, tempCardID.length());
 		//m_newInfos.cardID = temp;
 		tempCardID = temp;
         RunlogF(tempCardID.c_str());
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempName.c_str(), (unsigned char*)temp, tempName.length());
+        pReader->phex_a((unsigned char*)tempName.c_str(), (unsigned char*)temp, tempName.length());
 		//m_newInfos.name = temp;
 		tempName = temp;
         RunlogF(tempName.c_str());
@@ -1311,7 +1311,7 @@ void FuncRunlog(const char* pFunction,int nLine)
         RunlogF(tempName.c_str());
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempSex.c_str(), (unsigned char*)temp, tempSex.length());
+        pReader->phex_a((unsigned char*)tempSex.c_str(), (unsigned char*)temp, tempSex.length());
 		tempSex = temp;
         RunlogF(tempSex.c_str());
 
@@ -1488,12 +1488,12 @@ void FuncRunlog(const char* pFunction,int nLine)
         CheckResult(WriteFile(m_hReader, "01", "01", m_newInfos.identifyNum, msg));
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)KLB.c_str(), (unsigned char*)temp, KLB.length());
+        pReader->phex_a((unsigned char*)KLB.c_str(), (unsigned char*)temp, KLB.length());
         KLB = temp;
         CheckResult(WriteFile(m_hReader, "02", "02", KLB, msg));
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempCardVersion.c_str(), (unsigned char*)temp, tempCardVersion.length());
+        pReader->phex_a((unsigned char*)tempCardVersion.c_str(), (unsigned char*)temp, tempCardVersion.length());
 		tempCardVersion = temp;
 		transform(tempCardVersion.begin(), tempCardVersion.end(), tempCardVersion.begin(), ::toupper);
 
@@ -1506,7 +1506,7 @@ void FuncRunlog(const char* pFunction,int nLine)
         CheckResult(WriteFile(m_hReader, "06", "06", m_newInfos.cardValidDate, msg));
 
 		memset(temp, 0x00, 1024);
-        pDecardlib->phex_a((unsigned char*)tempcardNumber.c_str(), (unsigned char*)temp, tempcardNumber.length());
+        pReader->phex_a((unsigned char*)tempcardNumber.c_str(), (unsigned char*)temp, tempcardNumber.length());
         tempcardNumber = temp;
         CheckResult(WriteFile(m_hReader, "07", "07", tempcardNumber, msg));
 
@@ -1587,7 +1587,7 @@ void FuncRunlog(const char* pFunction,int nLine)
 		string version = "";
 
 		char cas[64] = { 0 };
-        pDecardlib->pa_hex((unsigned char*)msg.substr(4, msg.length() - 4 - 4).c_str(), (unsigned char*)cas, msg.length());
+        pReader->pa_hex((unsigned char*)msg.substr(4, msg.length() - 4 - 4).c_str(), (unsigned char*)cas, msg.length());
 		version = cas;
 		if (version.substr(0, 1) == "1")version = "1.00";
 		else if (version.substr(0, 1) == "2")version = "2.00";
@@ -1603,7 +1603,7 @@ void FuncRunlog(const char* pFunction,int nLine)
         CheckResult(RunApdu(m_hReader, "00B2070400",msg));
 		memset(temp, 0x00, 1024);
 		string cardNumber = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)cardNumber.c_str(), (unsigned char*)temp, cardNumber.length());
+        pReader->pa_hex((unsigned char*)cardNumber.c_str(), (unsigned char*)temp, cardNumber.length());
 		cardNumber = temp;
 
         CheckResult(RunApdu(m_hReader, "00A4000002EF06",msg));//
@@ -1612,14 +1612,14 @@ void FuncRunlog(const char* pFunction,int nLine)
 
 		memset(temp, 0x00, 1024);
 		string cardID = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)cardID.c_str(), (unsigned char*)temp, cardID.length());
+        pReader->pa_hex((unsigned char*)cardID.c_str(), (unsigned char*)temp, cardID.length());
 		cardID = temp;
 
         CheckResult(RunApdu(m_hReader, "00B2020400",msg));//
 
 		memset(temp, 0x00, 1024);
 		string name = msg.substr(4, msg.length() - 4 - 4);
-        pDecardlib->pa_hex((unsigned char*)name.c_str(), (unsigned char*)temp, name.length());
+        pReader->pa_hex((unsigned char*)name.c_str(), (unsigned char*)temp, name.length());
 		name = temp;
 
 		string cardInfo = "";			//cardInfo += "|";
@@ -1854,7 +1854,7 @@ void FuncRunlog(const char* pFunction,int nLine)
         RunlogF(tempLog);
 
 		memset(temp, 0x00, 102400);
-        pDecardlib->phex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        pReader->phex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
 		QMZS = temp;
         RunlogF(QMZS.c_str());
 
@@ -1869,7 +1869,7 @@ void FuncRunlog(const char* pFunction,int nLine)
 			return 1;
 		}
 		memset(temp, 0x00, 102400);
-        pDecardlib->phex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        pReader->phex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
 		JMZS = temp;
         RunlogF(JMZS.c_str());
 
@@ -1884,7 +1884,7 @@ void FuncRunlog(const char* pFunction,int nLine)
 			return 1;
 		}
 		memset(temp, 0x00, 102400);
-        pDecardlib->phex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        pReader->phex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
 		JMMY = temp;
         RunlogF(JMMY.c_str());
 
