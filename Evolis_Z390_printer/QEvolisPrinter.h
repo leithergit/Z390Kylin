@@ -8,13 +8,17 @@
 #include <list>
 #include <map>
 #include <vector>
+#include <chrono>
+
 #include "dynamiclib.h"
 //#include "evolislib.h"
+#include "readerbase.h"
 #include "LithographPrinter.h"
 #include "../sdk/evolis/include/evolis_def.h"
 #include <string>
 using namespace std;
-#define LibVer     "Z390_kylin_aarch64_1.0.1.5 "
+using namespace chrono ;
+#define LibVer     "Z390_kylin_aarch64_1.0.1.6 "
 struct myFontInfo
 {
     string strPath;
@@ -191,21 +195,6 @@ enum CheckType
     Bezel = 2
 };
 
-enum CardPostion
-{
-    Pos_Non         = 0,
-    Pos_Bezel       = 1,
-    Pos_Contactless = 2,
-    Pos_Contact     = 3,
-    Pos_Print       = 4,
-    Pos_OutofEntrance,
-    Pos_Blocked     ,
-    Pos_Unknow
-};
-
-#include <chrono>
-using namespace chrono ;
-
 class TraceFnTime
 {
     high_resolution_clock::time_point tStart;
@@ -256,7 +245,7 @@ public:
     evolis_print_set_imageb pevolis_print_set_imageb = nullptr;
     ssize_t  pevolis_command(evolis_t* printer, const char* cmd, size_t cmdSize, char* reply, size_t replyMaxSize)
     {
-        TraceFnTime t((char *)cmd,reply);
+        //TraceFnTime t((char *)cmd,reply);
         return pfnevolis_command(printer,cmd,cmdSize,reply,replyMaxSize);
     }
 
@@ -304,9 +293,10 @@ public:
     evolis_ribbon_t ribbon;
     bool    bNoRibbon = false;
     bool    bCoverOpened = false;
-
+    CardPostion     nCardPos = CardPostion::Pos_Non;
     Lithograph::LITHOGRAPHBOXUNIT   CardBoxInfo[2];
     void *m_pPrinter = nullptr;
+    ReaderPtr  pReader = nullptr;
     bool IsOpen()
     {
         return (m_pPrinter != nullptr);

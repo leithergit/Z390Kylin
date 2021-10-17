@@ -230,6 +230,8 @@ private slots:
 
     void on_comboBox_Port_activated(const QString &arg1);
 
+    void on_pushButton_AutoPrinter_clicked();
+
 private:
     Ui::MainWindow *ui;
     int  nResetOption = 1;

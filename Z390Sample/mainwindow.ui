@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Sample for Z390 Printer SDK (Kylin OS)</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_6">
@@ -753,7 +753,7 @@
            </layout>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="1,2,2,0,2,2,2,0">
+           <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="1,2,2,0,2,2,2,2,0">
             <item>
              <widget class="QLabel" name="label_10">
               <property name="text">
@@ -864,6 +864,25 @@
              </widget>
             </item>
             <item>
+             <widget class="QPushButton" name="pushButton_AutoPrinter">
+              <property name="minimumSize">
+               <size>
+                <width>80</width>
+                <height>32</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>200</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>自动打印</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <spacer name="horizontalSpacer_4">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
@@ -873,7 +892,7 @@
               </property>
               <property name="sizeHint" stdset="0">
                <size>
-                <width>200</width>
+                <width>100</width>
                 <height>20</height>
                </size>
               </property>

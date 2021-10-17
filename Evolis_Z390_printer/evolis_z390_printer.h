@@ -8,7 +8,7 @@
 #include <vector>
 #include <memory>
 #include <thread>
-#include "readerDecard.h"
+#include "readerdecard.h"
 #include "evolislib.h"
 #include "QEvolisPrinter.h"
 #include "readerbase.h"
@@ -157,7 +157,7 @@ public:
           * @param[out] pszRcCode 失败时返回4位错误码，成功时返回"0000"
           * @return 0：成功；1：失败
          **/
-        virtual int Print_IcExchange(long lTimeout, unsigned char* byIndata, int nInDataLen, unsigned char* pOutData, int& nOutLen, char* pszRcCode) override;
+        virtual int Print_IcExchange(long lTimeout, uchar* byIndata, int nInDataLen, uchar* pOutData, int& nOutLen, char* pszRcCode) override;
         /** @ingroup CLithographPrinter Function declaration
           * @brief  从卡箱发卡(若支持需实现)
           * @param[in] lTimeout 超时时间,单位ms

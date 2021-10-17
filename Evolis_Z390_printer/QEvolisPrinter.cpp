@@ -626,7 +626,7 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
         strcpy(pszRcCode,"0005");
         return 1;
     }
-    RunlogF("Try to call evolis_open(%s).",szPrinterPort);
+    RunlogF("Try to call evolis_open(%s:%s).",pPort,pPortParam);
     //m_pPrinter = pevolis_open2("usb:///dev/usb/lp0", EVOLIS_TY_EVOLIS);
     m_pPrinter = pevolis_open2(szPrinterPort, EVOLIS_TY_EVOLIS);
     if (!m_pPrinter)
@@ -648,51 +648,6 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
         return 1;
     }
 
-//    char szReply[128] = {0};
-//    const char *szAdapt[] = {
-//                            "Rzp",      // 读打印机区码
-//                            "Rrt;zone"  // 读色带区码
-//                            };
-//    const char *szDev[] = {"Printer","Ribbon"};
-//    unsigned char szZone1[16] = {0};
-//    unsigned char szZone2[16] = {0};
-//    memcpy(szZone1,g_szZoneKey1,16);
-//    memcpy(szZone2,g_szZoneKey2,16);
-//    AES aes(g_szAesKey);
-//    aes.DeCrypt(szZone1);
-//    aes.DeCrypt(szZone2);
-//    //RunlogF("Zone1 = %s.\n",szZone1);
-//    //RunlogF("Zone2 = %s.\n",szZone2);
-//    int nIndex = 0;
-//    // 色带区码标签 1046==F61A,.98C=F616
-//    //auto var = szAdapt[0];
-//    for(auto var:szAdapt)
-//    {
-//        if (pevolis_command(m_pPrinter,var,strlen(var),szReply,sizeof(szReply)) < 0)
-//        {
-//            RunlogF("Failed in adapting %s.\n",szDev[nIndex]);
-//            strcpy(pszRcCode,"0006");
-//            bFault = true;
-//            return 1;
-//        }
-//        if (strcmp(szReply,"ERR RIB DETECTION") == 0)
-//        {
-//            bNoRibbon = true;
-//            continue;
-//        }
-//        string strReply = szReply;
-//        std::transform(strReply.begin(),strReply.end(),strReply.begin(),::toupper);
-//        if (strReply != (const char *)szZone1  &&
-//            strReply != (const char *)szZone2)
-//        {
-//            RunlogF("The %s it not compatible with Z390!\n",szDev[nIndex]);
-//            evolis_close(m_pPrinter);
-//            m_pPrinter = nullptr;
-//            strcpy(pszRcCode, "0004");
-//            return 1;
-//        }
-//        //nIndex ++;
-//   }
 
    if (bNoRibbon)
    {
@@ -747,11 +702,29 @@ int  QEvolisPrinter::GetRibbonStatus(char *pszRcCode)
     char szReply[16] = {0};
     auto szQueryCapcity = "Rrt;qty";
     auto tNow = high_resolution_clock::now();
-    if (pevolis_command(m_pPrinter,szQueryCapcity,strlen(szQueryCapcity),szReply,sizeof(szReply)) < 0)
+    int nLoop = 0;
+    do
     {
-        RunlogF("Failed in evolis_command(%s).\n",szQueryCapcity);
-        strcpy(pszRcCode,"0006");
-        bFault = true;
+        if (pevolis_command(m_pPrinter,szQueryCapcity,strlen(szQueryCapcity),szReply,sizeof(szReply)) < 0)
+        {
+            RunlogF("Failed in evolis_command(%s).\n",szQueryCapcity);
+            strcpy(pszRcCode,"0006");
+            bFault = true;
+            return 1;
+        }
+        nLoop ++;
+        RunlogF("evolis_command(Query Ribbon Capcity) Succeed:%s.\n",szReply);
+        // the evolis_command(Rrt;qty) may return an invalid result "OK",if the reply is "OK",try it send the command again
+        if (strcmp(szReply,"OK") == 0 && nLoop < 3)
+        {
+            this_thread::sleep_for(chrono::milliseconds(100));
+            continue;
+        }
+        break;
+    }while(true);
+
+    if (!strcmp(szReply,"OK"))
+    {
         return 1;
     }
     if (!strcmp(szReply,"ERR RIB DETECTION"))
@@ -763,13 +736,32 @@ int  QEvolisPrinter::GetRibbonStatus(char *pszRcCode)
     }
     ribbon.capacity = strtol(szReply,nullptr,10);
     auto szQueryCount = "Rrt;count";
-    if (pevolis_command(m_pPrinter,szQueryCount,strlen(szQueryCount),szReply,sizeof(szReply)) < 0)
+    nLoop = 0;
+    do
     {
-        RunlogF("Failed in evolis_command(%s).\n",szQueryCount);
-        strcpy(pszRcCode,"0006");
-        bFault = true;
+        if (pevolis_command(m_pPrinter,szQueryCount,strlen(szQueryCount),szReply,sizeof(szReply)) < 0)
+        {
+            RunlogF("Failed in evolis_command(%s).\n",szQueryCount);
+            strcpy(pszRcCode,"0006");
+            bFault = true;
+            return 1;
+        }
+        nLoop ++;
+        // the evolis_command(Rrt;count) may return an invalid result "OK",if the reply is "OK",try it send the command again
+        if (strcmp(szReply,"OK") == 0 && nLoop < 3)
+        {
+            this_thread::sleep_for(chrono::milliseconds(100));
+            continue;
+        }
+        break;
+    }while (true);
+
+    if (!strcmp(szReply,"OK"))
+    {
         return 1;
     }
+
+    RunlogF("evolis_command(Query Ribbon remained) Succeed:%s.\n",szReply);
     if (!strcmp(szReply,"ERR RIB DETECTION"))
     {
         ribbon.capacity = 0;
@@ -1031,6 +1023,7 @@ int  QEvolisPrinter::Eject(long lTimeout, char *pszRcCode)
 //    }
     RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
+    bFault = false;
     return 0;
 }
 
@@ -1076,6 +1069,7 @@ int  QEvolisPrinter::Retract(long lTimeout, int nBoxNo, char *pszRcCode)
     }
     RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
+    bFault = false;
     return  0;
 }
 
@@ -1240,6 +1234,8 @@ int  QEvolisPrinter::InDraftCard(long lTimeout,char *pszRcCode,bool bCheckCard)
     }
 
     char* szCommand[] = {"Sib","Sis"};
+    if (pReader->GetVender() == Vender::Minhua)
+        szCommand[1] = "Sic";
     for (auto var:szCommand)
     {
       if (pevolis_command(m_pPrinter, var,strlen(var), szReply,sizeof(szReply))< 0)
@@ -1275,9 +1271,13 @@ int  QEvolisPrinter::InDraftCard(long lTimeout,char *pszRcCode,bool bCheckCard)
       }
       this_thread::sleep_for(std::chrono::milliseconds(200));
     }
-
+    if (CheckCardPostion(&nCardPos,pszRcCode))
+    {
+        return 1;
+    }
     RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
+    bFault = false;
     return 0;
 }
 
@@ -1363,44 +1363,39 @@ int  QEvolisPrinter::Dispense(long lTimeout, int nBox, int nDispPos, char* pszRc
         return 0;
     }
 
-    CardPostion nDestPos = Pos_Contact;
+    evolis_pos_e nDestPos;
     auto szCmdArray = {"Smr","Sis","Sic","Si"};
     if (nDispPos == 2 )
     {
-        // Sis
-        if (pevolis_set_card_pos(m_pPrinter,EVOLIS_CP_CONTACT) < 0)
+        if (pReader->GetVender() == Vender::Minhua)
         {
-            strcpy(pszRcCode, "0006");
-            RunlogF("Failed in evolis_set_card_pos(EVOLIS_CP_CONTACT).\n");
-            bFault = true;
-            return 1;
+            nDestPos = EVOLIS_CP_CONTACTLESS;
+            nDispPos = 3;       // convert to 3 if the reader vender is minhua
+            // Sic
+        }
+        else
+        {
+            nDestPos = EVOLIS_CP_CONTACT;
+            // Sis
         }
     }
     else if(nDispPos == 3)
     {
+        nDestPos = EVOLIS_CP_CONTACTLESS;
         // Sic
-        if (pevolis_set_card_pos(m_pPrinter,EVOLIS_CP_CONTACTLESS) < 0)
-        {
-            strcpy(pszRcCode, "0006");
-            RunlogF("Failed in evolis_set_card_pos(EVOLIS_CP_CONTACTLESS).\n");
-            bFault = true;
-            return 1;
-        }
-        nDestPos = Pos_Contactless;
     }
     else if (nDispPos == 4)
     {
+        nDestPos = EVOLIS_CP_INSERT;
         // Si
-        if (pevolis_set_card_pos(m_pPrinter,EVOLIS_CP_INSERT) < 0)
-        {
-            strcpy(pszRcCode, "0006");
-            RunlogF("Failed in evolis_set_card_pos(EVOLIS_CP_INSERT).\n");
-            bFault = true;
-            return 1;
-        }
-        nDestPos = Pos_Contactless;
     }
-
+    if (pevolis_set_card_pos(m_pPrinter,nDestPos) < 0)
+    {
+        strcpy(pszRcCode, "0006");
+        RunlogF("Failed in evolis_set_card_pos(EVOLIS_CP_INSERT).\n");
+        bFault = true;
+        return 1;
+    }
     if (CheckCardPostion(&nCardPos,pszRcCode,Internal))
     {// nCardPos 0-无卡；1-卡在门口；2-卡在内部；3-卡在上电位
         return 1;
@@ -1413,7 +1408,7 @@ int  QEvolisPrinter::Dispense(long lTimeout, int nBox, int nDispPos, char* pszRc
         strcpy(pszRcCode, "0016");
         return 1;
     }
-
+    bFault = false;
     RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     return 0;
@@ -1537,9 +1532,9 @@ int  QEvolisPrinter::DevStatus(long lTimeout, Lithograph::LPLITHOGRAPHSTATUS &lp
             lpStatus->fwToner = 3;
         else
         {
-            if (RibbonNum == -1)
+            if (RibbonNum == -1|| RibbonNum == 0)
                 lpStatus->fwToner = 2;
-            else if (RibbonNum <=20 )
+            else if (RibbonNum <= 20 )
                 lpStatus->fwToner = 1;
             else
                 lpStatus->fwToner = 0;
@@ -1735,7 +1730,7 @@ int QEvolisPrinter::CheckCardPostion(int *Media,char *pszRcCode,CheckType nCheck
             bFault = true;
             return 1;
         }
-
+        RunlogF("evolis_command(Check Printer Internal) Succeed:%s.\n",szReply);
         char szReply2[32] = {0};
         nIdx ++;
         if (pevolis_command(m_pPrinter,szCmd[nIdx],strlen(szCmd[nIdx]),szReply2,sizeof(szReply2)) < 0)
@@ -1745,6 +1740,7 @@ int QEvolisPrinter::CheckCardPostion(int *Media,char *pszRcCode,CheckType nCheck
             bFault = true;
             return 1;
         }
+        RunlogF("evolis_command(Check Bezel) Succeed:%s.\n",szReply);
         //Media 0-无卡；1-卡在门口；2-卡在内部；3-卡在上电位，4-卡在闸门外；5-堵卡；6-卡片未知（根据硬件特性返回,必须支持有无卡检测）
         if (strcmp(szReply,"OK") == 0)
         {
@@ -1776,6 +1772,7 @@ int QEvolisPrinter::CheckCardPostion(int *Media,char *pszRcCode,CheckType nCheck
             bFault = true;
             return 1;
         }
+        RunlogF("evolis_command(Check Printer Internal) Succeed%s:.\n",szReply);
         if (strcmp(szReply,"OK") == 0)
             *Media = Pos_Non;
         else if (strcmp(szReply,"CARD") == 0)
@@ -1796,6 +1793,7 @@ int QEvolisPrinter::CheckCardPostion(int *Media,char *pszRcCode,CheckType nCheck
             bFault = true;
             return 1;
         }
+        RunlogF("evolis_command(Check Bezel) Succeed%s:.\n",szReply);
         //Media 0-无卡；1-卡在门口；2-卡在内部；3-卡在上电位，4-卡在闸门外；5-堵卡；6-卡片未知（根据硬件特性返回,必须支持有无卡检测）
         // 0,2x Volts是没卡
         // 4,9x Volts是有卡
@@ -1809,7 +1807,11 @@ int QEvolisPrinter::CheckCardPostion(int *Media,char *pszRcCode,CheckType nCheck
     }
         break;
     }
-
+    if (*Media == Pos_Non)
+    {
+        bFault = false;
+    }
+    pReader->SetCardSlot(*Media);
     return 0;
 }
 
@@ -1883,7 +1885,7 @@ int QEvolisPrinter::GetPrinterStatus(int * RibbonNum,int *Device, int *Media,cha
         bFault = true;
         return 1;
     }
-
+    RunlogF("evolis_command(Check cover) Succeed%s:.\n",szReply);
     if (szReply[0] == '0')
     {
         bCoverOpened = true;

@@ -20,6 +20,47 @@
 #include <QTime>
 
 
+#include <iconv.h>
+
+int code_convert(char *from_charset,char *to_charset,char *inbuf,size_t inlen,char *outbuf,size_t outlen)
+{
+    iconv_t cd;
+    int rc;
+    char **pin = &inbuf;
+    char **pout = &outbuf;
+
+    cd = iconv_open(to_charset,from_charset);
+    if (cd==0)
+        return -1;
+    if (iconv(cd,pin,&inlen,pout,&outlen)==-1)
+        return -1;
+    iconv_close(cd);
+    return 0;
+}
+
+// utf8码转为GB2312码
+int UTF8_GB2312(char *inbuf,int inlen,char *outbuf,int outlen)
+{
+    return code_convert("utf-8","gb2312",inbuf,inlen,outbuf,outlen);
+}
+
+// GB2312码转为utf8
+int GB2312_UTF8(char *inbuf,size_t inlen,char *outbuf,size_t outlen)
+{
+    return code_convert("gb2312","utf-8",inbuf,inlen,outbuf,outlen);
+}
+
+// utf8转为gbk
+string Utf8_GBK(const char *inbuf)
+{
+    int inlen=strlen(inbuf);
+    string strRet;
+    strRet.resize(inlen*2+2);
+    if(code_convert("utf-8","gbk",const_cast<char *>(inbuf),inlen,&strRet[0],strRet.size()))
+        return inbuf;
+    return strRet;
+}
+
 //#include "./Z390/include/evolis_z390_lithographprinter.h"
 
 using namespace std;
@@ -798,57 +839,7 @@ void MainWindow::on_pushButton_PrinterSetImage_clicked()
 //        OutputMsg("Picture has input!\n");
 }
 
-#include <iconv.h>
 
-int code_convert(char *from_charset,char *to_charset,char *inbuf,size_t inlen,char *outbuf,size_t outlen)
-{
-    iconv_t cd;
-    int rc;
-    char **pin = &inbuf;
-    char **pout = &outbuf;
-
-    cd = iconv_open(to_charset,from_charset);
-    if (cd==0)
-        return -1;
-    if (iconv(cd,pin,&inlen,pout,&outlen)==-1)
-        return -1;
-    iconv_close(cd);
-    return 0;
-}
-
-// utf8码转为GB2312码
-int UTF8_GB2312(char *inbuf,int inlen,char *outbuf,int outlen)
-{
-    return code_convert("utf-8","gb2312",inbuf,inlen,outbuf,outlen);
-}
-
-// GB2312码转为utf8
-int GB2312_UTF8(char *inbuf,size_t inlen,char *outbuf,size_t outlen)
-{
-    return code_convert("gb2312","utf-8",inbuf,inlen,outbuf,outlen);
-}
-
-// utf8转为gbk
-string Utf8_GBK(const char *inbuf)
-{
-    int inlen=strlen(inbuf);
-    string strRet;
-    strRet.resize(inlen*2+2);
-    if(code_convert("utf-8","gbk",const_cast<char *>(inbuf),inlen,&strRet[0],strRet.size()))
-    return inbuf;
-    return strRet;
-}
-
-// gbk转为utf8
-string GBK_Utf8(const char *inbuf)
-{
-    int inlen=strlen(inbuf);
-    string strRet;
-    strRet.resize(inlen*2+2);
-    if(code_convert("gbk","utf-8",const_cast<char *>(inbuf),inlen,&strRet[0],strRet.size()))
-        return inbuf;
-    return strRet;
-}
 
 #include <iostream>
 #include <fstream>
@@ -1168,4 +1159,97 @@ void MainWindow::on_comboBox_Extracommand_currentIndexChanged(const QString &arg
 void MainWindow::on_comboBox_Port_activated(const QString &arg1)
 {
 
+}
+
+void MainWindow::on_pushButton_AutoPrinter_clicked()
+{
+    CheckPriner(pPrinterInstance);
+    long lTimeout = 2000;
+    char szRCode[1024] = {0};
+    Lithograph::LPLITHOGRAPHSTATUS lpStatus = new Lithograph::LITHOGRAPHSTATUS;
+
+    char *szDevice[] = {"在线","忙","不在线","故障"};
+    char *szMedia[] = {"无卡","卡在门口","卡在内部","卡在上电位","卡在闸门外","堵卡","卡片未知"};
+    char *szToner[] = {"FLLL","LOW","OUT","NOTSUPP","UNKNOW"};
+    if (pPrinterInstance->Print_Status(lTimeout,lpStatus,szRCode))
+    {
+        OutputMsg("Print_Status Failed!");
+        return ;
+    }
+
+    QString strFileImage = ui->lineEdit_graphpath->text();
+    if (strFileImage.size() <= 0)
+    {
+        OutputMsg("Plz Select a Image to Print!");
+        return;
+    }
+
+    QFileInfo fipic(strFileImage);
+    if (!fipic.isFile())
+    {
+       OutputMsg("Plz Select a Image to Print!");
+       return ;
+    }
+
+    OutputMsg("Device = %s\tMedia = %s\tToner = %s.",szDevice[lpStatus->fwDevice],szMedia[lpStatus->fwMedia],szToner[lpStatus->fwToner]);
+
+    if (lpStatus->fwMedia != 0 )
+    {
+        Printer_Retract();
+    }
+    ui->comboBox_DispPOS->setCurrentIndex(1);
+    Printer_InsertCard();
+    int nX = ui->lineEdit_graphX->text().toInt();
+    int nY = ui->lineEdit_graphY->text().toInt();
+    int nW = ui->lineEdit_graphW->text().toInt();
+    int nH = ui->lineEdit_graphH->text().toInt();
+    int nAngle = ui->lineEdit_graph_angle->text().toInt();
+    if (pPrinterInstance->Print_PrintImage(lTimeout,(char *)strFileImage.toStdString().c_str(),nAngle,nX,nY,nH,nW,szRCode))
+        OutputMsg("Print_PrintImage Failed!");
+    else
+        OutputMsg("Print_PrintImage Succeed!");
+
+
+    vector<string> vecTextUTF8 = {"姓名  测试用户",
+                              "社会保障号码  123456789012345678",
+                              "社会保障卡号  ABCDEFGHKLMN",
+                              "发卡日期  2021年9月18日"};
+    vector <string> vecText;
+    for (auto var:vecTextUTF8)
+    {
+        char szOutBuffer[128] = {0};
+        UTF8_GB2312((char *)var.c_str(),var.size(),szOutBuffer,128);
+        vecText.push_back(szOutBuffer);
+    }
+
+
+    int size = 8;
+    int nFontStyle = 1;
+    if (ui->checkBox_Bold->isChecked())
+       nFontStyle = 2;
+    QString strFont =  ui->lineEdit_Font->text();
+    if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[0].c_str(),nAngle,28,14.5,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+    {
+       OutputMsg("Print_PrintText Failed:%s",szRCode);
+       return ;
+    }
+    if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[1].c_str(),nAngle,28,19,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+    {
+       OutputMsg("Print_PrintText Failed:%s",szRCode);
+       return ;
+    }
+    if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[2].c_str(),nAngle,28,23.5,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+    {
+       OutputMsg("Print_PrintText Failed:%s",szRCode);
+       return ;
+    }
+    if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[3].c_str(),nAngle,28,28,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+    {
+       OutputMsg("Print_PrintText Failed:%s",szRCode);
+       return ;
+    }
+
+    OutputMsg("Print_PrintText Succeed!");
+    Printer_Start();
+    Printer_Retract();
 }

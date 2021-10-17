@@ -132,25 +132,25 @@ extern "C"
     }
 
     void ClearLog(QString strPath,int nDays = 30)
-{
-    QStringList filters;
-    filters << "*.log";
-    QDir dir;
-    dir.setPath(strPath);
-    dir.setNameFilters(filters);
-    QDirIterator iter(dir,QDirIterator::Subdirectories);
-    while(iter.hasNext())
     {
-        iter.next();
-        QFileInfo info = iter.fileInfo();
-        if (info.isFile() &&
-            info.created().addDays(30) <= QDateTime::currentDateTime())
+        QStringList filters;
+        filters << "*.log";
+        QDir dir;
+        dir.setPath(strPath);
+        dir.setNameFilters(filters);
+        QDirIterator iter(dir,QDirIterator::Subdirectories);
+        while(iter.hasNext())
         {
-            QFile fileTemp(info.absoluteFilePath());
-            fileTemp.remove();
+            iter.next();
+            QFileInfo info = iter.fileInfo();
+            if (info.isFile() &&
+                info.created().addDays(30) <= QDateTime::currentDateTime())
+            {
+                QFile fileTemp(info.absoluteFilePath());
+                fileTemp.remove();
+            }
         }
     }
-}
 
 
     LPVOID  CreateInstance(LPVOID lpReserve)
@@ -411,7 +411,7 @@ extern "C"
     {
         RunlogF("Prepare QEvolisPrinter.\n");
         pEvolisPriner = new QEvolisPrinter();
-        pReader = shared_ptr <ReaderBase>(CreateReader());
+        pReader = CreateReader();
         //InitializeFont();
     }
 
@@ -451,7 +451,9 @@ extern "C"
         if (!pReader->OpenDev(nullptr,0,nullptr))
         {
             strcpy(pszRcCode, "0001");  // 打开读卡器失败
-            RunlogF("Failed in dc_init.\n");
+            string strError;
+            pReader->GetErrorMsg(strError);
+            RunlogF("Failed in OpenDev:%s.\n",strError.c_str());
             return 1;
         }
 
@@ -463,7 +465,21 @@ extern "C"
                 return 1;
             }
             else
-                return pEvolisPriner->Open(pPort,pPortParam,pszRcCode);
+            {
+                int nResult = pEvolisPriner->Open(pPort,pPortParam,pszRcCode);
+                if (nResult == 0)
+                {
+                    pEvolisPriner->pReader = pReader;
+                    // Media 介质状态，0-无卡；1-卡在门口；2-卡在内部；3-卡在上电位，4-卡在闸门外；5-堵卡；6-卡片未知（根据硬件特性返回,必须支持有无卡检测）
+                    // nCheckPos = 0,check printer and bezel,
+                    // nCheckPos = 1 check printer
+                    // nCheckPos = 2 check bezel
+                    int nMedia = -1;
+                    char szCode[16] = {0};
+                    pEvolisPriner->CheckCardPostion(&nMedia,szCode);
+                }
+                return nResult;
+            }
         }
         else
         {
@@ -480,9 +496,8 @@ extern "C"
     {
         Funclog()
         if (pReader)
-        {
-            pReader = nullptr;
-        }
+            pReader->CloseDev();
+
         if (pEvolisPriner)
             return pEvolisPriner->Close(pszRcCode);
         else
@@ -657,21 +672,14 @@ extern "C"
 
         if (pReader)
         {
-            // IC卡上电
-            // 设置用户卡座
-            if (pReader->SetCardSlot(0x0))
-			{
-                strcpy(pszRcCode, "0019");
-                RunlogF("设置卡座失败.\n");
-				return 1;
-			}
             int ret = 0;
 			char dataBuffer[1024] = { 0 };
-
             if (pReader->PowerOn(dataBuffer,ret ))
 			{
                 strcpy(pszRcCode, "0019");
-                RunlogF("CPU卡复位失败.\n");
+                string strError;
+                pReader->GetErrorMsg(strError);
+                RunlogF("CPU卡复位失败:%s.\n",strError.c_str());
 				return 1;
 			}
 			
@@ -710,7 +718,7 @@ extern "C"
       * @param[out] pszRcCode 失败时返回4位错误码，成功时返回"0000"
       * @return 0：成功；1：失败
      **/
-    int Evolis_Z390_Printer::Print_IcExchange(long lTimeout, unsigned char* byIndata, int nInDataLen, unsigned char* pOutData, int& nOutLen, char* pszRcCode)
+    int Evolis_Z390_Printer::Print_IcExchange(long lTimeout, uchar* byIndata, int nInDataLen, uchar* pOutData, int& nOutLen, char* pszRcCode)
     {
         Q_UNUSED(lTimeout);
         Funclog();
@@ -725,10 +733,12 @@ extern "C"
         RunlogF("byIndata[%d] = %s.",nInDataLen,szBuffer);
         uint nRecvLen = 0;
         RunlogF("Try to ApduInt(%s).\n",byIndata);
-        int nRet = pReader->ApduInt((char *)byIndata,nInDataLen, (char *)pOutData, nRecvLen);
+        int nRet = pReader->ApduInt((const uchar *)byIndata,nInDataLen, pOutData, nRecvLen);
         if (nRet < 0)
         {
-            RunlogF("Failed in dc_cpuapduInt,return:%d.\n",nRet);
+            string strError;
+            pReader->GetErrorMsg(strError);
+            RunlogF("Failed in ApduInt:%s.\n",strError.c_str());
             strcpy(pszRcCode, "0019");
             return 1;
         }
@@ -1010,17 +1020,19 @@ extern "C"
    bool Evolis_Z390_Printer::RunApdu(string cmd,string &OutMsg)
 	{
         Funclog();
-        char dataBuff[4096] = { 0 };
+        char dataBuff[1024] = { 0 };
         OutMsg = "";
         if (!pReader)
             return false;
 
         uint nRecvLen = 0;
         RunlogF("Try to dc_cpuapduInt_hex(%s).\n",cmd.c_str());
-        short nRet = pReader->ApduInt((char*)cmd.c_str(),cmd.length() / 2, (char *)dataBuff, nRecvLen);
+        short nRet = pReader->ApduIntHex(cmd.c_str(),cmd.length() / 2, dataBuff, nRecvLen);
         if (nRet <0)
         {
-            RunlogF("Failed in dc_cpuapduInt_hex,return:%d.\n",nRet);
+            string strError;
+            pReader->GetErrorMsg(strError);
+            RunlogF("Failed in ApduIntHex:%s.\n",strError.c_str());
             return false;
         }
         RunlogF("dc_cpuapduInt_hex return %d bytes:%s.\n",nRecvLen,dataBuff);
@@ -1212,36 +1224,37 @@ extern "C"
     }
     int Evolis_Z390_Printer::ReadBankCard(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode)
     {
-//        int nResult = 0;
-//        if ((nResult = (lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode)) == 0)
-//        {
-//            return nResult;
-//        }
-//        else if ((nResult = ReadBankCard2(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode)) == 0)
-//            return nResult;
-//        else
-//        {
-//            strcpy(pszRcCode, "0020");
-//            return 1;
-//        }
         if (!pReader)
         {
             strcpy(pszRcCode, "0003");
             return 1;
         }
-        char szBankCardNo[128] = {0};
-        if (pReader->GetBankcardNo((unsigned char *)szBankCardNo) == 0)
+        int nResult = 0;
+        if ((nResult = ReadBankCard1(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode)) == 0)
         {
-            m_CardInfo.bankNumber = szBankCardNo;
-            lpCmdOut = (LPVOID)m_CardInfo.bankNumber.c_str();
-            strcpy(pszRcCode, "0000");
-            return 0;
+            return nResult;
         }
+        else if ((nResult = ReadBankCard2(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode)) == 0)
+            return nResult;
         else
         {
             strcpy(pszRcCode, "0020");
             return 1;
         }
+
+//        char szBankCardNo[128] = {0};
+//        if (pReader->GetBankcardNo((unsigned char *)szBankCardNo) == 0)
+//        {
+//            m_CardInfo.bankNumber = szBankCardNo;
+//            lpCmdOut = (LPVOID)m_CardInfo.bankNumber.c_str();
+//            strcpy(pszRcCode, "0000");
+//            return 0;
+//        }
+//        else
+//        {
+//            strcpy(pszRcCode, "0020");
+//            return 1;
+//        }
     }
     // 根据 长城贺工提供的方式读取社保卡卡号
     // 1.发送选择应用类型指令，类型:社保卡应用，指令：00A4040008A00000033301010100
@@ -2487,7 +2500,6 @@ extern "C"
             }
             return 0;
         }
-
         else if (0 == strcmp(pCommand,"EvolisCommand"))
         {
             if (!pEvolisPriner)
@@ -2583,7 +2595,6 @@ extern "C"
             strcpy(pszRcCode, "0000");
             return 0;
         }
-
         else if (0 == strcmp(pCommand,"Set IFDarkLevelValue"))
         {
             if (!pEvolisPriner)
