@@ -5,8 +5,8 @@ using namespace std;
 
 ReaderPtr CreateReader()
 {
-    list<ReaderPtr> listReader = {shared_ptr<ReaderBase>(new Readerdecard())};
-                                  //shared_ptr<ReaderBase>(new ReaderMinhua())};
+    list<ReaderPtr> listReader = {shared_ptr<ReaderBase>(new Readerdecard()),
+                                  shared_ptr<ReaderBase>(new ReaderMinhua())};
     for (auto var:listReader)
         if (var->DetectDev())
             return var;

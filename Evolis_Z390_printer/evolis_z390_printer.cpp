@@ -30,6 +30,7 @@
 #include <QStringList>
 #include <QIODevice>
 #include <QDirIterator>
+#include <QSettings>
 
 using namespace std;
 
@@ -43,10 +44,13 @@ const int DPI = 300;
 QFile *pFilelog = nullptr;
 bool g_bEnableOutput = true;
 bool g_bEnableLog = true;
+bool g_bEnalbeEvolislog = true;
+int  g_nLogPeriod = 30;
+int g_nEvolis_logLevel = 0;
 
 
 #define RunlogF(...)    Runlog(__PRETTY_FUNCTION__,__LINE__,__VA_ARGS__);
-#define Funclog()       FuncRunlog(__PRETTY_FUNCTION__,__LINE__);
+#define Funclog()       //FuncRunlog(__PRETTY_FUNCTION__,__LINE__);
 
 //#define     SetAndroidEnv()
 
@@ -71,7 +75,6 @@ extern "C"
 {
 //    void  _init()
 //    {
-
 //    }
 //    void  _finit()
 //    {
@@ -157,43 +160,65 @@ extern "C"
     {
         Q_UNUSED(lpReserve);
         QString strCurrentPath = QDir::currentPath();
-        strCurrentPath += "/log";
-        ClearLog(strCurrentPath,30);
-        if (!pFilelog)
+
+
+        strCurrentPath += "/Evolis_Z390.ini";
+        QSettings Setting(strCurrentPath,QSettings::IniFormat);
+        if (Setting.contains("Config/LogPeriod"))
+            g_nLogPeriod = Setting.value("Config/LogPeriod").toInt();
+        if (Setting.contains("Config/Evolis_log"))
+            g_bEnalbeEvolislog = Setting.value("Config/Evolis_log").toBool();
+        if (Setting.contains("Config/Evolis_loglevel"))
+            g_nEvolis_logLevel = Setting.value("Config/Evolis_loglevel").toInt();
+
+        if (g_nLogPeriod)
         {
-            char szFileName[2048] = {0};
-            QDateTime tNow = QDateTime::currentDateTime();
+            strCurrentPath = QDir::currentPath();
+            strCurrentPath += "/log";
+            ClearLog(strCurrentPath,g_nLogPeriod);
+            if (!pFilelog)
+            {
+                char szFileName[2048] = {0};
+                char szFileName2[2048] = {0};
+                QDateTime tNow = QDateTime::currentDateTime();
 
-            QDir dir(strCurrentPath);
-            if (!dir.exists())
-                dir.mkpath(strCurrentPath);
-            sprintf(szFileName,"%s/Z390_%04d%02d%02d_%02d%02d%02d.log",strCurrentPath.toUtf8().data(),
-                            tNow.date().year(),
-                            tNow.date().month(),
-                            tNow.date().day(),
-                            tNow.time().hour(),
-                            tNow.time().minute(),
-                            tNow.time().second());
-            pFilelog = new QFile(szFileName);
-            if (pFilelog)
-            { /*
-                    enum OpenModeFlag {
-                    NotOpen = 0x0000,
-                    ReadOnly = 0x0001,
-                    WriteOnly = 0x0002,
-                    ReadWrite = ReadOnly | WriteOnly,
-                    Append = 0x0004,
-                    Truncate = 0x0008,
-                    Text = 0x0010,
-                    Unbuffered = 0x0020
-                };
-                */
+                QDir dir(strCurrentPath);
+                if (!dir.exists())
+                    dir.mkpath(strCurrentPath);
+                sprintf(szFileName,"%s/Z390_%04d%02d%02d_%02d%02d%02d.log",strCurrentPath.toUtf8().data(),
+                                tNow.date().year(),
+                                tNow.date().month(),
+                                tNow.date().day(),
+                                tNow.time().hour(),
+                                tNow.time().minute(),
+                                tNow.time().second());
+                sprintf(szFileName2,"%s/Evolis_%04d%02d%02d_%02d%02d%02d.log",strCurrentPath.toUtf8().data(),
+                                tNow.date().year(),
+                                tNow.date().month(),
+                                tNow.date().day(),
+                                tNow.time().hour(),
+                                tNow.time().minute(),
+                                tNow.time().second());
+                pFilelog = new QFile(szFileName);
+                if (pFilelog)
+                { /*
+                        enum OpenModeFlag {
+                        NotOpen = 0x0000,
+                        ReadOnly = 0x0001,
+                        WriteOnly = 0x0002,
+                        ReadWrite = ReadOnly | WriteOnly,
+                        Append = 0x0004,
+                        Truncate = 0x0008,
+                        Text = 0x0010,
+                        Unbuffered = 0x0020
+                    };
+                    */
 
-               pFilelog->open(QIODevice::WriteOnly|QIODevice::Text);
-               pFilelog->write("Try to allocate Evolis_Z390_Printer!");
+                   pFilelog->open(QIODevice::WriteOnly|QIODevice::Text);
+                   pFilelog->write("Try to allocate Evolis_Z390_Printer!");
+                }
             }
         }
-
 
         return  (void *)new Evolis_Z390_Printer();
     }
@@ -679,7 +704,7 @@ extern "C"
                 strcpy(pszRcCode, "0019");
                 string strError;
                 pReader->GetErrorMsg(strError);
-                RunlogF("CPU卡复位失败:%s.\n",strError.c_str());
+                RunlogF("PowerOn Failed:%s.\n",strError.c_str());
 				return 1;
 			}
 			
@@ -2472,6 +2497,17 @@ extern "C"
             }
             return 0;
         }
+        else if (0 == strcmp(pCommand,"RibbonStatus"))
+        {
+            if (!pEvolisPriner)
+            {
+                strcpy(pszRcCode, "0001");
+                return 1;
+            }
+            sprintf((char *)pEvolisPriner->szEvolisReply,"Capcity = %d remained = %d",pEvolisPriner->ribbon.capacity,pEvolisPriner->ribbon.remaining);
+            lpCmdOut = &pEvolisPriner->szEvolisReply;
+            return 0;
+        }
         else if (0 == strcmp(pCommand,"Enablelog"))
         {
             if (!pEvolisPriner)
@@ -2507,7 +2543,6 @@ extern "C"
                 strcpy(pszRcCode, "0001");
                 return 1;
             }
-
             return pEvolisPriner->SendCommand((const char *)lpCmdIn,lpCmdOut,pszRcCode);
         }
         else if (0 == strcmp(pCommand,"Reset Delay"))

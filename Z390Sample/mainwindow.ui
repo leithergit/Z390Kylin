@@ -229,6 +229,12 @@
                <height>0</height>
               </size>
              </property>
+             <property name="maximumSize">
+              <size>
+               <width>200</width>
+               <height>16777215</height>
+              </size>
+             </property>
              <item>
               <property name="text">
                <string>Front Side</string>
@@ -247,6 +253,12 @@
               <size>
                <width>80</width>
                <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>200</width>
+               <height>16777215</height>
               </size>
              </property>
              <item>
@@ -349,6 +361,12 @@
                <height>0</height>
               </size>
              </property>
+             <property name="maximumSize">
+              <size>
+               <width>200</width>
+               <height>16777215</height>
+              </size>
+             </property>
              <item>
               <property name="text">
                <string>保持卡位</string>
@@ -367,17 +385,14 @@
             </widget>
            </item>
            <item>
-            <spacer name="horizontalSpacer_5">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+            <widget class="QProgressBar" name="progressBar_Ribbon">
+             <property name="styleSheet">
+              <string notr="true"/>
              </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
+             <property name="value">
+              <number>24</number>
              </property>
-            </spacer>
+            </widget>
            </item>
           </layout>
          </item>
@@ -393,6 +408,12 @@
            <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,1,1,1,1,1">
             <item>
              <widget class="QRadioButton" name="radioButton_EnableCardOnce">
+              <property name="maximumSize">
+               <size>
+                <width>120</width>
+                <height>16777215</height>
+               </size>
+              </property>
               <property name="text">
                <string>出卡口进卡一次</string>
               </property>
@@ -463,8 +484,14 @@
            <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
              <widget class="QLabel" name="label_6">
+              <property name="maximumSize">
+               <size>
+                <width>120</width>
+                <height>16777215</height>
+               </size>
+              </property>
               <property name="text">
-               <string>卡片位置</string>
+               <string>卡片目标位置</string>
               </property>
              </widget>
             </item>
@@ -883,20 +910,11 @@
              </widget>
             </item>
             <item>
-             <spacer name="horizontalSpacer_4">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
+             <widget class="QCheckBox" name="checkBox_AutoPrinter">
+              <property name="text">
+               <string>连续打印</string>
               </property>
-              <property name="sizeType">
-               <enum>QSizePolicy::Preferred</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>100</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
+             </widget>
             </item>
            </layout>
           </item>

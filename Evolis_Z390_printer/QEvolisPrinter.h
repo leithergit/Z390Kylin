@@ -18,7 +18,7 @@
 #include <string>
 using namespace std;
 using namespace chrono ;
-#define LibVer     "Z390_kylin_aarch64_1.0.1.6 "
+#define LibVer     "Z390_1.0.1.7 "
 struct myFontInfo
 {
     string strPath;
@@ -27,10 +27,8 @@ struct myFontInfo
         :strPath(path)
         ,strStyle(style)
     {
-
     }
 };
-
 
 typedef struct CardInfo
 {
@@ -216,6 +214,8 @@ public:
     ~FnTime();
 };
 
+
+
 class QEvolisPrinter:public DynamicLib
 {
     void *pHandle = nullptr;
@@ -245,7 +245,7 @@ public:
     evolis_print_set_imageb pevolis_print_set_imageb = nullptr;
     ssize_t  pevolis_command(evolis_t* printer, const char* cmd, size_t cmdSize, char* reply, size_t replyMaxSize)
     {
-        //TraceFnTime t((char *)cmd,reply);
+        TraceFnTime t((char *)cmd,reply);
         return pfnevolis_command(printer,cmd,cmdSize,reply,replyMaxSize);
     }
 
@@ -301,6 +301,7 @@ public:
     {
         return (m_pPrinter != nullptr);
     }
+    void CreateEvolislog();
     int  Open(char *pPort, char *pPortParam, char *pszRcCode);
     int  Close(char *pszRcCode) ;
     int  Reset(long lTimeout, int nResetAction, char *pszRcCode) ;
@@ -316,7 +317,7 @@ public:
     int  StartPrint(long lTimeout, char *pszRcCode);
     int  InDraftCard(long lTimeout,char *pRCode,bool bCheckCard = true);
     int  SendCommand(const char *lpCmdIn,LPVOID &lpCmdOut,char *szRcCode);
-    char szEvolisReply[32];
+    char szEvolisReply[64];
     int  MoveCardContact();
     //void AddText(char *szText,int nAngle, float fxPos, float fyPos,  int nFontSize, int nColor);
     void PrintText();

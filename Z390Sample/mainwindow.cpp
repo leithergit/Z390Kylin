@@ -91,6 +91,7 @@ ExtraCommand cmdlist[] =
         {"Set DeviceReset",{"True","False"}},
         {"EnableOutput",{"True","False"}},
         {"Enablelog",{"True","False"}},
+        {"RibbonStatus",{}},
    };
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -389,6 +390,21 @@ void MainWindow::Printer_GetStatus()
         OutputMsg("Print_Status Failed!");
         return ;
     }
+    char *szOut = nullptr;
+    if (pPrinterInstance->Print_ExtraCommand(lTimeout,"RibbonStatus",nullptr,(LPVOID &)szOut,szRCode) == 0)
+    {
+        int nCapcity = 0,nRemained = 0;
+        sscanf(szOut,"Capcity = %d remained = %d",&nCapcity,&nRemained);
+        ui->progressBar_Ribbon->setMaximum(nCapcity);
+        ui->progressBar_Ribbon->setMinimum(0);
+        ui->progressBar_Ribbon->setValue(nRemained);
+        if (nCapcity == 0)
+            ui->progressBar_Ribbon->setStyleSheet("QProgress::chunk{background-color:#FF0000;}");
+        else
+            ui->progressBar_Ribbon->setStyleSheet("QProgress::chunk{background-color:#0FF00;}");
+        ui->progressBar_Ribbon->update();
+    }
+
 
     OutputMsg("Device = %s\tMedia = %s\tToner = %s.",szDevice[lpStatus->fwDevice],szMedia[lpStatus->fwMedia],szToner[lpStatus->fwToner]);
 }

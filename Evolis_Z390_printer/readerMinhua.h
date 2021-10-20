@@ -21,7 +21,7 @@ class ReaderMinhua :public ReaderBase,DynamicLib
 {
 
 private:
-    int  nSlot = -1;
+    int  nSlot = -1;    // 0 for contact,1 for contactless
     mwDevGetUsbList         pDevGetUsbList          = nullptr;
     mwDevOpen               pDevOpen                = nullptr;
     mwDevClose              pDevClose               = nullptr;
@@ -153,7 +153,7 @@ public:
             this->nSlot = -1;
              break;
         case Pos_Contactless :
-            this->nSlot = 1;
+            this->nSlot = 1;    // contactless
              break;
         case Pos_Contact     :
             this->nSlot = 0;
@@ -169,7 +169,23 @@ public:
             nOpFlag = 1;
         nError = pSmartCardReset_HEX(hReader, nSlot, szArtInfo,nOpFlag);
         if (nError < 0)
-            return nError;
+        {
+            if (nSlot == 0)  // contact? try with contactless!
+            {
+                nError = pSmartCardReset_HEX(hReader, 1, szArtInfo,1);
+                if (nError >= 0) // Succeed ? all the later operation  will swtch to slot1,contactless!
+                {
+                    nSlot = 1;
+                    nOpFlag = 1;
+                    nRetLen = nError;
+                    return 0;
+                }
+                else
+                    return nError;
+            }
+            else
+                return nError;
+        }
         else
         {
             nRetLen = nError;

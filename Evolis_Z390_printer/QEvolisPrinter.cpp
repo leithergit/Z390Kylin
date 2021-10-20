@@ -67,7 +67,10 @@ using namespace chrono;
 const int DPI = 300;
 extern QFile *pFilelog;
 extern bool g_bEnableOutput ;
+extern int  g_nLogPeriod;
 extern bool g_bEnableLog ;
+extern int g_nEvolis_logLevel;
+extern bool g_bEnalbeEvolislog;
 
 // AES key
 unsigned char g_szAesKey[] =  {0x9d,0x06,0x93,0xce,0x80,0x8e,0x37,0xeb,0xd7,0xee,0x09,0x56,0xb5,0xae,0xb3,0xb0};
@@ -79,7 +82,7 @@ unsigned char g_szZoneKey2[16] =  {0x99,0xf4,0xb4,0x85,0xb1,0x10,0xdf,0x75,0x1c,
 
 
 #define RunlogF(...)    Runlog(__PRETTY_FUNCTION__,__LINE__,__VA_ARGS__);
-#define Funclog()       FnTime fTime(__PRETTY_FUNCTION__);FuncRunlog(__PRETTY_FUNCTION__,__LINE__);  TraceFunction TF(__PRETTY_FUNCTION__,__LINE__);//auto threadID = std::this_thread::get_id();RunlogF("####Current ThreadID:%08x####\n",threadID);
+#define Funclog()       //FnTime fTime(__PRETTY_FUNCTION__);*FuncRunlog(__PRETTY_FUNCTION__,__LINE__);  TraceFunction TF(__PRETTY_FUNCTION__,__LINE__);//auto threadID = std::this_thread::get_id();RunlogF("####Current ThreadID:%08x####\n",threadID);
 
 #define     CheckHandle()       if (!pHandle)    \
                                 {\
@@ -576,6 +579,33 @@ int QEvolisPrinter::CheckRibbonZone(char *pszRcCode)
     return 0;
 }
 
+void QEvolisPrinter::CreateEvolislog()
+{
+    if (g_nLogPeriod > 0 && g_bEnalbeEvolislog)
+    {
+        QString strCurrentPath = QDir::currentPath();
+        strCurrentPath += "/log";
+
+        char szFileName[2048] = {0};
+
+        QDateTime tNow = QDateTime::currentDateTime();
+
+        QDir dir(strCurrentPath);
+        if (!dir.exists())
+            dir.mkpath(strCurrentPath);
+        sprintf(szFileName,"%s/Evolis_%04d%02d%02d_%02d%02d%02d.log",strCurrentPath.toUtf8().data(),
+                        tNow.date().year(),
+                        tNow.date().month(),
+                        tNow.date().day(),
+                        tNow.time().hour(),
+                        tNow.time().minute(),
+                        tNow.time().second());
+
+       pevolis_log_set_path(szFileName);
+       pevolis_log_set_level((evolis_log_t)g_nEvolis_logLevel);
+    }
+}
+
 int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
 {
     Funclog();
@@ -585,30 +615,8 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
         strcpy(pszRcCode,"0005");
         return 1;
     }
-
+    CreateEvolislog();
     CheckHandle();
-//    以下代码无法工作
-//    int n = 0;
-//    RunlogF("Try to evolis_get_devices.\n");
-//    if ((n = pevolis_get_devices(&devices, 0, 0)) >= 0)
-//    {
-//        qDebug("%d printers found\r\n", n);
-//        for (int i = 0; i < n; ++i)
-//        {
-//            char name[64];
-
-//            qDebug("- %s\r\n", tocstring(name, devices[i].name));
-//            qDebug("  Id: %s\r\n", devices[i].id);
-//            qDebug("  Uri: %s\r\n", devices[i].uri);
-//            qDebug("  Mark: %s\r\n", pevolis_get_mark_name(devices[i].mark));
-//            qDebug("  Model: %s\r\n", pevolis_get_model_name(devices[i].model));
-//            qDebug("  isSupervised: %s\r\n", (devices[i].isSupervised) ? "true" : "false");
-//            qDebug("  link: %s\r\n",
-//                    (devices[i].link == EVOLIS_LI_TCP) ? "TCP" :
-//                    (devices[i].link == EVOLIS_LI_USB) ? "USB" : "?");
-//        }
-//        RunlogF("evolis_get_devices Succeed.\n");
-//    }
 
     char szPrinterPort[64] = {0};
     if (strcmp(pPort,"USB") == 0)
@@ -648,7 +656,6 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
         return 1;
     }
 
-
    if (bNoRibbon)
    {
        ribbon.capacity = 0;
@@ -660,6 +667,7 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
    }
    char szReply[32] = {0};
    const char *szCmd[]={
+                        "Pem;2",       // 将打印机自动纠错复位禁用，完全由上位程序发送指令
                         "Psmgr;2",     // 防止进卡和出卡阻塞
                         "Pcim;F",      // 从卡箱进卡
                         "Pcem;I",      // 从出卡口出卡
@@ -680,7 +688,7 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
         }
     }
 
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     return 0;
 }
@@ -703,8 +711,8 @@ int  QEvolisPrinter::GetRibbonStatus(char *pszRcCode)
     auto szQueryCapcity = "Rrt;qty";
     auto tNow = high_resolution_clock::now();
     int nLoop = 0;
-    do
-    {
+//    do
+//    {
         if (pevolis_command(m_pPrinter,szQueryCapcity,strlen(szQueryCapcity),szReply,sizeof(szReply)) < 0)
         {
             RunlogF("Failed in evolis_command(%s).\n",szQueryCapcity);
@@ -715,18 +723,18 @@ int  QEvolisPrinter::GetRibbonStatus(char *pszRcCode)
         nLoop ++;
         RunlogF("evolis_command(Query Ribbon Capcity) Succeed:%s.\n",szReply);
         // the evolis_command(Rrt;qty) may return an invalid result "OK",if the reply is "OK",try it send the command again
-        if (strcmp(szReply,"OK") == 0 && nLoop < 3)
-        {
-            this_thread::sleep_for(chrono::milliseconds(100));
-            continue;
-        }
-        break;
-    }while(true);
+//        if (strcmp(szReply,"OK") == 0 && nLoop < 3)
+//        {
+//            this_thread::sleep_for(chrono::milliseconds(100));
+//            continue;
+//        }
+//        break;
+//    }while(true);
 
-    if (!strcmp(szReply,"OK"))
-    {
-        return 1;
-    }
+//    if (!strcmp(szReply,"OK"))
+//    {
+//        return 1;
+//    }
     if (!strcmp(szReply,"ERR RIB DETECTION"))
     {
         ribbon.capacity = 0;
@@ -736,9 +744,9 @@ int  QEvolisPrinter::GetRibbonStatus(char *pszRcCode)
     }
     ribbon.capacity = strtol(szReply,nullptr,10);
     auto szQueryCount = "Rrt;count";
-    nLoop = 0;
-    do
-    {
+//    nLoop = 0;
+//    do
+//    {
         if (pevolis_command(m_pPrinter,szQueryCount,strlen(szQueryCount),szReply,sizeof(szReply)) < 0)
         {
             RunlogF("Failed in evolis_command(%s).\n",szQueryCount);
@@ -746,20 +754,20 @@ int  QEvolisPrinter::GetRibbonStatus(char *pszRcCode)
             bFault = true;
             return 1;
         }
-        nLoop ++;
-        // the evolis_command(Rrt;count) may return an invalid result "OK",if the reply is "OK",try it send the command again
-        if (strcmp(szReply,"OK") == 0 && nLoop < 3)
-        {
-            this_thread::sleep_for(chrono::milliseconds(100));
-            continue;
-        }
-        break;
-    }while (true);
+//        nLoop ++;
+//        // the evolis_command(Rrt;count) may return an invalid result "OK",if the reply is "OK",try it send the command again
+//        if (strcmp(szReply,"OK") == 0 && nLoop < 3)
+//        {
+//            this_thread::sleep_for(chrono::milliseconds(100));
+//            continue;
+//        }
+//        break;
+//    }while (true);
 
-    if (!strcmp(szReply,"OK"))
-    {
-        return 1;
-    }
+//    if (!strcmp(szReply,"OK"))
+//    {
+//        return 1;
+//    }
 
     RunlogF("evolis_command(Query Ribbon remained) Succeed:%s.\n",szReply);
     if (!strcmp(szReply,"ERR RIB DETECTION"))
@@ -786,7 +794,7 @@ int  QEvolisPrinter::Close(char *pszRcCode)
     //RunlogF("evolis_close Succeed.\n");
     m_pPrinter = nullptr;
 
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     return 0;
 }
@@ -807,29 +815,30 @@ int  QEvolisPrinter::Reset(long lTimeout, int nResetAction, char *pszRcCode)
         }
         RunlogF("Succeed in evolis_reset timeouted(),Wait for device:%d.\n",szTimeouted,nResetDelay);
         this_thread::sleep_for(chrono::milliseconds(nResetDelay));
+        RunlogF("Try to prepare device.\n");
+        const char *szCmd[]={
+                             "Pem;2",
+                             "Psmgr;2",     // 防止进卡和出卡阻塞
+                             "Pcim;F",      // 从卡箱进卡
+                             "Pcem;M",      // 从出卡口出卡
+                             "Pneab;E"      // 打印结束后不出卡
+                             "Pbc;A;D"
+                            };
+         for (auto var:szCmd)
+         {
+             if (pevolis_command(m_pPrinter,var,strlen(var),szReply,sizeof(szReply)) < 0)
+             {
+                 RunlogF("Failed in evolis_command(%s).\n",var);
+                 strcpy(pszRcCode,"0006");
+                 bFault = true;
+                 return 1;
+             }
+         }
+        RunlogF("Prepare device succeed,Try to CheckCardPostion.\n");
     }
     else
         RunlogF("Skip device reset.\n");
 
-    RunlogF("Try to prepare device.\n");
-    const char *szCmd[]={
-                         "Psmgr;2",     // 防止进卡和出卡阻塞
-                         "Pcim;F",      // 从卡箱进卡
-                         "Pcem;M",      // 从出卡口出卡
-                         "Pneab;E"      // 打印结束后不出卡
-                         "Pbc;A;D"
-                        };
-     for (auto var:szCmd)
-     {
-         if (pevolis_command(m_pPrinter,var,strlen(var),szReply,sizeof(szReply)) < 0)
-         {
-             RunlogF("Failed in evolis_command(%s).\n",var);
-             strcpy(pszRcCode,"0006");
-             bFault = true;
-             return 1;
-         }
-     }
-    RunlogF("Prepare device succeed,Try to CheckCardPostion.\n");
     int nCardPos = 0;
 
     if (CheckCardPostion(&nCardPos,pszRcCode))
@@ -939,7 +948,7 @@ int  QEvolisPrinter::Reset(long lTimeout, int nResetAction, char *pszRcCode)
     }
 
     bFault = false;
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     return 0;
 
@@ -1021,7 +1030,7 @@ int  QEvolisPrinter::Eject(long lTimeout, char *pszRcCode)
 //            return 1;
 //        }
 //    }
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     bFault = false;
     return 0;
@@ -1067,7 +1076,7 @@ int  QEvolisPrinter::Retract(long lTimeout, int nBoxNo, char *pszRcCode)
         bFault = true;
         return 1;
     }
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     bFault = false;
     return  0;
@@ -1143,7 +1152,7 @@ int  QEvolisPrinter::EnableCard(long lTimeout, int nCheckable, char *pszRcCode)
         DisableCard(lTimeout,pszRcCode);
     }
 
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     return  0;
 }
@@ -1177,7 +1186,7 @@ int  QEvolisPrinter::EnableCard2(long lTimeout, int nCheckable, char *pszRcCode)
             return 1;
         }
     }
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     return  0;
 }
@@ -1234,8 +1243,8 @@ int  QEvolisPrinter::InDraftCard(long lTimeout,char *pszRcCode,bool bCheckCard)
     }
 
     char* szCommand[] = {"Sib","Sis"};
-    if (pReader->GetVender() == Vender::Minhua)
-        szCommand[1] = "Sic";
+    //if (pReader->GetVender() == Vender::Minhua)
+    //    szCommand[1] = "Sic";
     for (auto var:szCommand)
     {
       if (pevolis_command(m_pPrinter, var,strlen(var), szReply,sizeof(szReply))< 0)
@@ -1275,7 +1284,7 @@ int  QEvolisPrinter::InDraftCard(long lTimeout,char *pszRcCode,bool bCheckCard)
     {
         return 1;
     }
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     bFault = false;
     return 0;
@@ -1304,7 +1313,7 @@ int  QEvolisPrinter::DisableCard(long lTimeout, char *pszRcCode)
          }
      }
 
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     return  0;
 }
@@ -1367,13 +1376,13 @@ int  QEvolisPrinter::Dispense(long lTimeout, int nBox, int nDispPos, char* pszRc
     auto szCmdArray = {"Smr","Sis","Sic","Si"};
     if (nDispPos == 2 )
     {
-        if (pReader->GetVender() == Vender::Minhua)
-        {
-            nDestPos = EVOLIS_CP_CONTACTLESS;
-            nDispPos = 3;       // convert to 3 if the reader vender is minhua
-            // Sic
-        }
-        else
+//        if (pReader->GetVender() == Vender::Minhua)
+//        {
+//            nDestPos = EVOLIS_CP_CONTACTLESS;
+//            nDispPos = 3;       // convert to 3 if the reader vender is minhua
+//            // Sic
+//        }
+//        else
         {
             nDestPos = EVOLIS_CP_CONTACT;
             // Sis
@@ -1409,7 +1418,7 @@ int  QEvolisPrinter::Dispense(long lTimeout, int nBox, int nDispPos, char* pszRc
         return 1;
     }
     bFault = false;
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     return 0;
 }
@@ -1482,7 +1491,7 @@ int  QEvolisPrinter::GetBoxStatus(long lTimeout, Lithograph::LPLITHOGRAPHBOXINFO
 
     lpBoxInfo->nCount = 2;
     lpBoxInfo->lpplist = CardBoxInfo;
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+   // RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
 
     return 0;
@@ -1570,7 +1579,7 @@ int  QEvolisPrinter::DevStatus(long lTimeout, Lithograph::LPLITHOGRAPHSTATUS &lp
             lpStatus->fwDevice = 3;
         }
         strcpy(pszRcCode, "0000");
-        RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+        //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
         return 0;
     }
     else
@@ -1581,7 +1590,7 @@ int  QEvolisPrinter::DevStatus(long lTimeout, Lithograph::LPLITHOGRAPHSTATUS &lp
         bFault = false;
         bOffline = true;
         strcpy(pszRcCode, "0000");
-        RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+        //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
         return 0;
     }
 }
@@ -1617,7 +1626,7 @@ int  QEvolisPrinter::InitPrint(long lTimeout, char *pszRcCode)
         bFault = true;
         return 1;
     }
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
     return 0;
 }
@@ -1668,7 +1677,7 @@ int  QEvolisPrinter::StartPrint(long lTimeout, char *pszRcCode)
         if (MoveCardContact() == 0)
         {
             strcpy(pszRcCode, "0000");
-            RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+            //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
             return  0;
         }
         else
@@ -1948,7 +1957,7 @@ int QEvolisPrinter::GetPrinterStatus(int * RibbonNum,int *Device, int *Media,cha
             RunlogF("evolis_status return exts[%d] = %d.\n",i, es.exts[i]);
     }
 
-    RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
+    //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     return 0;
 }
 
