@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Evolis_Zenius>
+  <ErrorCode value ="0000">
+    <ErrorDescription value ="successful"/>
+  </ErrorCode>
+  <ErrorCode value ="0001">
+    <ErrorDescription value ="Failed in connectting printer or reader"/>
+  </ErrorCode>
+  <ErrorCode value ="0002">
+    <ErrorDescription value ="already connected to the printer"/>
+  </ErrorCode>
+  <ErrorCode value ="0003">
+    <ErrorDescription value ="not connected to the printer, call Print_Open() first"/>
+  </ErrorCode>
+  <ErrorCode value ="0004">
+    <ErrorDescription value ="Unsupported printer"/>
+  </ErrorCode>
+  <ErrorCode value ="0005">
+    <ErrorDescription value ="invalid parameters"/>
+  </ErrorCode>
+  <ErrorCode value ="0006">
+    <ErrorDescription value ="Failed in communicating with printer"/>
+  </ErrorCode>
+  <ErrorCode value ="0007">
+    <ErrorDescription value ="feature not implemented"/>
+  </ErrorCode>
+  <ErrorCode value ="0008">
+    <ErrorDescription value ="can't find driver of vendor"/>
+  </ErrorCode>
+  <ErrorCode value ="0009">
+    <ErrorDescription value ="The feeder is empty"/>
+  </ErrorCode>
+  <ErrorCode value ="0010">
+    <ErrorDescription value ="printer is offline"/>
+  </ErrorCode>
+  <ErrorCode value ="0011">
+    <ErrorDescription value ="printer is busy"/>
+  </ErrorCode>
+   <ErrorCode value ="0012">
+    <ErrorDescription value ="action timeout"/>
+  </ErrorCode>
+  <ErrorCode value ="0013">
+    <ErrorDescription value ="image file is invalid!"/>
+  </ErrorCode>
+  <ErrorCode value ="0014">
+    <ErrorDescription value ="font name is invalid!"/>
+  </ErrorCode>
+  <ErrorCode value ="0015">
+    <ErrorDescription value ="There is a card at bezel or in printer!"/>
+  </ErrorCode>
+   <ErrorCode value ="0016">
+    <ErrorDescription value ="The card is blocked!"/>
+  </ErrorCode>
+  <ErrorCode value ="0017">
+    <ErrorDescription value ="Card is not ready!"/>
+  </ErrorCode>
+  <ErrorCode value ="0018">
+    <ErrorDescription value ="Failed in loading SIMSUN.ttf!"/>
+  </ErrorCode>
+  <ErrorCode value ="0019">
+    <ErrorDescription value ="Failed in ICPower on!"/>
+  </ErrorCode>
+  <ErrorCode value ="0020">
+    <ErrorDescription value ="Failed in ICExchange!"/>
+  </ErrorCode>
+  <ErrorCode value ="0021">
+    <ErrorDescription value ="Run out of ribbon!"/>
+  </ErrorCode>
+  <ErrorCode value ="0022">
+    <ErrorDescription value ="There is nothing to print!"/>
+  </ErrorCode>
+  <ErrorCode value ="0099">
+    <ErrorDescription value ="Unkown error"/>
+  </ErrorCode>
+</Evolis_Zenius>
