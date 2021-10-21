@@ -140,7 +140,7 @@ public:
     virtual int  SetCardSlot(int nPos)
     {
         nCardPos = (CardPostion)nPos;
-        Q_UNUSED(nSlot);
+
         switch (nCardPos)
         {
         default:
@@ -170,20 +170,20 @@ public:
         nError = pSmartCardReset_HEX(hReader, nSlot, szArtInfo,nOpFlag);
         if (nError < 0)
         {
-            if (nSlot == 0)  // contact? try with contactless!
-            {
-                nError = pSmartCardReset_HEX(hReader, 1, szArtInfo,1);
-                if (nError >= 0) // Succeed ? all the later operation  will swtch to slot1,contactless!
-                {
-                    nSlot = 1;
-                    nOpFlag = 1;
-                    nRetLen = nError;
-                    return 0;
-                }
-                else
-                    return nError;
-            }
-            else
+//            if (nSlot == 0)  // contact? try with contactless!
+//            {
+//                nError = pSmartCardReset_HEX(hReader, 1, szArtInfo,1);
+//                if (nError >= 0) // Succeed ? all the later operation  will swtch to slot1,contactless!
+//                {
+//                    nSlot = 1;
+//                    nOpFlag = 1;
+//                    nRetLen = nError;
+//                    return 0;
+//                }
+//                else
+//                    return nError;
+//            }
+//            else
                 return nError;
         }
         else

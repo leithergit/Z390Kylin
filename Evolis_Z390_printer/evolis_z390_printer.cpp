@@ -166,6 +166,8 @@ extern "C"
         QSettings Setting(strCurrentPath,QSettings::IniFormat);
         if (Setting.contains("Config/LogPeriod"))
             g_nLogPeriod = Setting.value("Config/LogPeriod").toInt();
+        if (g_nLogPeriod > 90 || g_nLogPeriod < 0)
+            g_nLogPeriod = 30;
         if (Setting.contains("Config/Evolis_log"))
             g_bEnalbeEvolislog = Setting.value("Config/Evolis_log").toBool();
         if (Setting.contains("Config/Evolis_loglevel"))
@@ -699,15 +701,30 @@ extern "C"
         {
             int ret = 0;
 			char dataBuffer[1024] = { 0 };
-            if (pReader->PowerOn(dataBuffer,ret ))
+            int nRes = pReader->PowerOn(dataBuffer,ret );
+            if (nRes)
 			{
+                if (pReader->GetVender() == Vender::Minhua &&
+                    pReader->nCardPos == CardPostion::Pos_Contact)
+                {
+                    if (pEvolisPriner->MoveCard(Pos_Contactless))
+                    {
+                        strcpy(pszRcCode, "0019");
+                        RunlogF("Failed in move card to contactless.\n");
+                        return 1;
+                    }
+                    nRes = pReader->PowerOn(dataBuffer,ret );
+                }
+			}
+			
+            if (nRes)
+            {
                 strcpy(pszRcCode, "0019");
                 string strError;
                 pReader->GetErrorMsg(strError);
                 RunlogF("PowerOn Failed:%s.\n",strError.c_str());
-				return 1;
-			}
-			
+                return 1;
+            }
 			CardATR = dataBuffer;
             string strInfo = "ATR:" + CardATR;
             RunlogF(strInfo.c_str());

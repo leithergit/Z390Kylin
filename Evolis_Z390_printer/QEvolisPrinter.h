@@ -18,7 +18,7 @@
 #include <string>
 using namespace std;
 using namespace chrono ;
-#define LibVer     "Z390_1.0.1.7 "
+#define LibVer     "Z390_1.0.1.8 "
 struct myFontInfo
 {
     string strPath;
@@ -246,6 +246,7 @@ public:
     ssize_t  pevolis_command(evolis_t* printer, const char* cmd, size_t cmdSize, char* reply, size_t replyMaxSize)
     {
         TraceFnTime t((char *)cmd,reply);
+        //this_thread::sleep_for(chrono::milliseconds(50));
         return pfnevolis_command(printer,cmd,cmdSize,reply,replyMaxSize);
     }
 
@@ -293,7 +294,6 @@ public:
     evolis_ribbon_t ribbon;
     bool    bNoRibbon = false;
     bool    bCoverOpened = false;
-    CardPostion     nCardPos = CardPostion::Pos_Non;
     Lithograph::LITHOGRAPHBOXUNIT   CardBoxInfo[2];
     void *m_pPrinter = nullptr;
     ReaderPtr  pReader = nullptr;
@@ -318,7 +318,8 @@ public:
     int  InDraftCard(long lTimeout,char *pRCode,bool bCheckCard = true);
     int  SendCommand(const char *lpCmdIn,LPVOID &lpCmdOut,char *szRcCode);
     char szEvolisReply[64];
-    int  MoveCardContact();
+    int  MoveCard(CardPostion nDstPos);
+    int  CheckCardBox(bool &bNoCard,char* pszRcCode);
     //void AddText(char *szText,int nAngle, float fxPos, float fyPos,  int nFontSize, int nColor);
     void PrintText();
     //void Exit();

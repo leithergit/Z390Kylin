@@ -252,7 +252,11 @@ void MainWindow::OpenPrinter()
                 var->setEnabled(true);
             ui->pushButton_PrinterOpen->setEnabled(false);
             ui->comboBox_Printer->setEnabled(false);
+
+            Printer_GetStatus();
+            Printer_GetBoxStatus();
         }
+
     }
     else
     {
@@ -401,7 +405,9 @@ void MainWindow::Printer_GetStatus()
         if (nCapcity == 0)
             ui->progressBar_Ribbon->setStyleSheet("QProgress::chunk{background-color:#FF0000;}");
         else
-            ui->progressBar_Ribbon->setStyleSheet("QProgress::chunk{background-color:#0FF00;}");
+            ui->progressBar_Ribbon->setStyleSheet("QProgress::chunk{background-color:#00FF00;}");
+        ui->progressBar_Ribbon->style()->unpolish(ui->progressBar_Ribbon);
+        ui->progressBar_Ribbon->style()->polish(ui->progressBar_Ribbon);
         ui->progressBar_Ribbon->update();
     }
 
@@ -917,6 +923,7 @@ void MainWindow::on_pushButton_PrinterSetText_clicked()
 
 void MainWindow::on_pushButton_PrinterICOn_clicked()
 {
+    WaitCursor();
     Printer_ICPowerOn();
 }
 
@@ -1179,6 +1186,7 @@ void MainWindow::on_comboBox_Port_activated(const QString &arg1)
 
 void MainWindow::on_pushButton_AutoPrinter_clicked()
 {
+    WaitCursor();
     CheckPriner(pPrinterInstance);
     long lTimeout = 2000;
     char szRCode[1024] = {0};
@@ -1268,4 +1276,7 @@ void MainWindow::on_pushButton_AutoPrinter_clicked()
     OutputMsg("Print_PrintText Succeed!");
     Printer_Start();
     Printer_Retract();
+    Printer_GetStatus();
+    Printer_GetBoxStatus();
 }
+

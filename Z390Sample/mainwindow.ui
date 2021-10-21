@@ -390,7 +390,7 @@
               <string notr="true"/>
              </property>
              <property name="value">
-              <number>24</number>
+              <number>0</number>
              </property>
             </widget>
            </item>
@@ -540,7 +540,7 @@
                </size>
               </property>
               <property name="text">
-               <string> 进卡</string>
+               <string> 进卡/移卡</string>
               </property>
              </widget>
             </item>

@@ -9,11 +9,12 @@ using namespace std;
 
 enum CardPostion
 {
-    Pos_Non         = 0,
-    Pos_Bezel       = 1,
-    Pos_Contactless = 2,
-    Pos_Contact     = 3,
+    Pos_Non         = 0,    
+    Pos_Mr          = 1,    
+    Pos_Contact     = 2,
+    Pos_Contactless = 3,
     Pos_Print       = 4,
+    Pos_Bezel       = 5,
     Pos_OutofEntrance,
     Pos_Blocked     ,
     Pos_Unknow
