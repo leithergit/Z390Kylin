@@ -18,7 +18,7 @@
 #include <string>
 using namespace std;
 using namespace chrono ;
-#define LibVer     "Z390_1.0.1.8 "
+#define LibVer     "Z390_1.0.1.8a "
 struct myFontInfo
 {
     string strPath;

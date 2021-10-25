@@ -232,6 +232,8 @@ private slots:
 
     void on_pushButton_AutoPrinter_clicked();
 
+    void on_pushButton_ScrollRibbon_clicked();
+
 private:
     Ui::MainWindow *ui;
     int  nResetOption = 1;

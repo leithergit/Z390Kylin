@@ -15,8 +15,8 @@ enum CardPostion
     Pos_Contactless = 3,
     Pos_Print       = 4,
     Pos_Bezel       = 5,
-    Pos_OutofEntrance,
-    Pos_Blocked     ,
+    Pos_Blocked     = 6,
+    Pos_OutofEntrance = 7,
     Pos_Unknow
 };
 

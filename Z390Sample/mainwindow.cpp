@@ -1280,3 +1280,28 @@ void MainWindow::on_pushButton_AutoPrinter_clicked()
     Printer_GetBoxStatus();
 }
 
+
+void MainWindow::on_pushButton_ScrollRibbon_clicked()
+{
+    WaitCursor();
+    CheckPriner(pPrinterInstance);
+    int nScrollCount = ui->lineEdit_ScrollCount->text().toInt();
+    for (int i = 0;i < nScrollCount;i ++)
+    {
+        char szRCode[1024] = {0};
+        long lTimeout = 5000;
+        LPVOID szCommandout = nullptr;
+        const char *szCommand[] = {"Mr;i","Rrt;qty","Rrt;count"};
+        for (auto var :szCommand)
+        {
+            if (pPrinterInstance->Print_ExtraCommand(lTimeout,"EvolisCommand",(LPVOID)var,szCommandout,szRCode))
+            {
+                OutputMsg("Print_ExtraCommand(EvolisCommand,%s) Failed!:%s",var,szRCode);
+            }
+            else
+            {
+                OutputMsg("%s -> %s.",var,szCommandout);
+            }
+        }
+    }
+}
