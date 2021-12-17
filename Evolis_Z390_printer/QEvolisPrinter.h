@@ -220,6 +220,19 @@ public:
 };
 
 
+typedef enum evolis_return_code_e {
+    EVOLIS_RC_OK = 0,
+    EVOLIS_RC_INTERNALERROR = -1,
+    EVOLIS_RC_COMMUNICATIONERROR = -2,
+    EVOLIS_RC_SESSIONTIMEOUT = -10,
+    EVOLIS_RC_PRINTERBUSY = -11,
+    EVOLIS_RC_PRINTDATAERROR = -20,
+    EVOLIS_RC_PRINTERNEEDUSERACTION = -21,
+    EVOLIS_RC_MECHANICALERROR = -22,
+    EVOLIS_RC_WAITINGCARDINSERTION = -23,
+    EVOLIS_RC_WAITINGCARDEJECTION = -24,
+} evolis_return_code_t;
+
 
 class QEvolisPrinter:public DynamicLib
 {
@@ -302,6 +315,8 @@ public:
     string  strIFBlackLevelValue = "15";
     string  strIFDarkLevelValue = "15";
     string  strResolution = "";
+    bool    bMarkDPI = false;
+    bool    bMarkDateTime = false;
     int     nDPI_W = 300;
     int     nDPI_H = 300;
     bool    bFault = false;

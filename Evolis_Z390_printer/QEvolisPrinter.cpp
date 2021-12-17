@@ -2486,6 +2486,7 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
     HeaderPrint.copyTo(HeaderROI);
 
     int nDarkLeft = 0,nDarkTop = 0,nDarkRight = 0,nDarkBottom = 0;
+    string strFontName ;
 
     for (auto var : inTextVector)
     {
@@ -2507,7 +2508,7 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
             nDarkBottom = rtROI.y + rtROI.height;
         else
             nDarkBottom = nDarkBottom>=(rtROI.y + rtROI.height)?nDarkBottom:(rtROI.y + rtROI.height);
-
+        strFontName = var->pFontName;
         Mat FontROI = canvas(rtROI);
         int fontHeight = (int)round(MM2Pixel(Pt2MM(var->nFontSize),nDPI_H));
         //RunlogF("Text = %s,FontSize = %.2f, FontPixel = %d.\n",var->sText.c_str(),var->nFontSize,fontHeight);
@@ -2518,6 +2519,52 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
 
             ft2->loadFontData(var->pFontName, 0); //加载字库文件
             ft2->putText(FontROI, var->sText.c_str(), cv::Point(0, 0), fontHeight, CV_RGB(0, 0, 0), -1, CV_AA, false,var->nFontStyle == Style_Bold);
+        }
+        catch (std::exception &e)
+        {
+            RunlogF("Catch a exception:%s.\n",e.what());
+            FailedCode(0018);
+        }
+    }
+    string strMark ="";
+    if (bMarkDateTime)
+    {
+        QDateTime tNow = QDateTime::currentDateTime();
+        strMark = tNow.toString("yyyy-MM-dd hh:mm:ss").toStdString();
+    }
+    if (bMarkDPI)
+    {
+        string strDPI =  "DPI300300";
+        if (strResolution.size() != 0)
+            strMark = strResolution;
+        strMark += "  ";
+        strMark += strDPI;
+    }
+
+    if(strMark.size())
+    {
+        try
+        {
+            cv::Ptr<cv::freetype::FreeType2> ft2;
+            ft2 = cv::freetype::createFreeType2();
+
+            ft2->loadFontData(strFontName, 0); //加载字库文件
+            string strDPI = "DPI300300";
+            if (strResolution.size() != 0)
+                strDPI = strResolution;
+            int nFontSize = 7;
+            bool bBold = false;
+            int nTextHeight = (int)round(MM2Pixel(Pt2MM(nFontSize),nDPI_H));
+            int nTextWidth = (int)round(MM2Pixel(Pt2MM(nFontSize),nDPI_W));
+
+            int nBaseline = 0;
+            Size TextSize = ft2->getTextSize(strMark,nTextHeight,0,&nBaseline);
+            int nStartX = nCardWidth - TextSize.width - MM2Pixel(1,nDPI_W);
+            int nStartY = nCardHeight - MM2Pixel(1,nDPI_H) - nTextHeight;
+            Rect rtROI(nStartX, nStartY,TextSize.width,nTextHeight);
+            Mat FontROI = canvas(rtROI);
+
+            ft2->putText(FontROI,strMark.c_str(), cv::Point(0, 0), nTextHeight, CV_RGB(0, 0, 0), -1, CV_AA, false,bBold);
         }
         catch (std::exception &e)
         {
@@ -2626,15 +2673,24 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
     auto tSpan = duration_cast<milliseconds>( high_resolution_clock::now() - tStart);
     //RunlogF("Prepare print duration:%d.",tSpan.count());
 
+    evolis_status_t es;
     RunlogF("Try to evolis_print_exec.\n");
     int nStatus = pevolis_print_exec((evolis_t*)m_pPrinter);
     if (nStatus != 0)
     {
         RunlogF("evolis_print_exec failed:%d.\n",nStatus);
+        if (pevolis_status(m_pPrinter, &es) != 0)
+        {
+            RunlogF("Error reading printer status\n");
+            bFault = true;
+            FailedCode(0006);
+        }
+        RunlogF("Printer Status:\n\tconfig = %d\n\tinformation = %d.\n\twarning = %d\n\terror = %d\n\texts[0] = %d\n\texts[1] = %d\n\texts[2] = %d\n\texts[3] = %d\n",
+                es.config,es.information,es.warning,es.error,es.exts[0],es.exts[1],es.exts[2],es.exts[3]);
         FailedCode(0006);
     }
     int             printed = 0;
-    evolis_status_t es;
+
     auto tLast = high_resolution_clock::now();
     while (!printed)
     {
@@ -2649,13 +2705,7 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
         RunlogF("pevolis_status duration %d ms\n",tDuration.count());
         printed = !(es.information & EVOLIS_INF_BUSY);
         this_thread::sleep_for(chrono::milliseconds(100));
-//        auto tNow = high_resolution_clock::now();
-//        auto tDeration = duration_cast<milliseconds>(tNow - tLast);
-//        if (tDeration.count() > nTimeout*1000)
-//        {
-//            RunlogF("Waiting printer task stop\n");
-//            break;
-//        }
+
     }
     this_thread::sleep_for(chrono::milliseconds(200));
     if (GetRibbonStatus(pszRcCode))
@@ -2700,11 +2750,8 @@ int  QEvolisPrinter::SendCommand(const char *lpCmdIn,LPVOID &lpCmdOut,char *pszR
 //    AddText(strID.toLocal8Bit().data(),nAngle,28,19,size,0);
 //    AddText(strCard.toLocal8Bit().data(),nAngle,28,23.5,size,0);
 //    AddText(strDate.toLocal8Bit().data(),nAngle,28,28,size,0);
-
 //    Mat canvas(nCardHeight,nCardWidth,CV_8UC3,Scalar(255,255,255));
-
 //    int nDarkLeft = 0,nDarkTop = 0,nDarkRight = 0,nDarkBottom = 0;
-
 //    for (auto var : m_textInfo)
 //    {
 //        //RunlogF("Text = %s,FontSize = %d,xPos = %.02f,yPos = %.2f.\n",var->sText.c_str(),var->nFontSize);

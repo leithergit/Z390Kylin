@@ -2636,9 +2636,8 @@ extern "C"
                 strcpy(pszRcCode, "0005");
                 return 1;
             }
-
         }
-        if (0 == strcmp(pCommand,"FColorBrightness"))
+        else if (0 == strcmp(pCommand,"FColorBrightness"))
         {
             if (!pEvolisPriner)
             {
@@ -2727,6 +2726,58 @@ extern "C"
             {
                 pEvolisPriner->nDPI_H = 300;
                 pEvolisPriner->nDPI_W = 300;
+                strcpy(pszRcCode, "0000");
+                return 0;
+            }
+            else
+            {
+                strcpy(pszRcCode, "0005");
+                return 1;
+            }
+        }
+        else if (0 == strcmp(pCommand,"Print Resolution"))
+        {
+            if (!pEvolisPriner)
+            {
+                strcpy(pszRcCode, "0001");
+                return 1;
+            }
+            char *szEnable =(char *)lpCmdIn;
+            if (strcmp(szEnable,"True") == 0)
+            {
+                pEvolisPriner->bMarkDPI = true;
+                strcpy(pszRcCode, "0000");
+                return 0;
+            }
+            if (strcmp(szEnable,"False") ==0)
+            {
+                pEvolisPriner->bMarkDPI = false;
+                strcpy(pszRcCode, "0000");
+                return 0;
+            }
+            else
+            {
+                strcpy(pszRcCode, "0005");
+                return 1;
+            }
+        }
+        else if (0 == strcmp(pCommand,"Print Datetime"))
+        {
+            if (!pEvolisPriner)
+            {
+                strcpy(pszRcCode, "0001");
+                return 1;
+            }
+            char *szEnable =(char *)lpCmdIn;
+            if (strcmp(szEnable,"True") == 0)
+            {
+                pEvolisPriner->bMarkDateTime = true;
+                strcpy(pszRcCode, "0000");
+                return 0;
+            }
+            if (strcmp(szEnable,"False") ==0)
+            {
+                pEvolisPriner->bMarkDateTime = false;
                 strcpy(pszRcCode, "0000");
                 return 0;
             }
