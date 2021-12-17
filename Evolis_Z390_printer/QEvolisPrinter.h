@@ -18,7 +18,7 @@
 #include <string>
 using namespace std;
 using namespace chrono ;
-#define LibVer     "Z390_1.0.1.8a "
+#define LibVer     "Z390_1.0.1.9 "
 struct myFontInfo
 {
     string strPath;
@@ -183,6 +183,10 @@ using  evolis_print_set_imageb   = int (*)(evolis_t* printer, evolis_face_t face
 
 using TextInfoPtr = std::shared_ptr<TextInfo>;
 using TaskPtr = std::shared_ptr<Task>;
+
+#define RunlogF(...)    Runlog(__PRETTY_FUNCTION__,__LINE__,__VA_ARGS__);
+#define Funclog()       //FuncRunlog(__PRETTY_FUNCTION__,__LINE__);
+
 void Runlog(const char* pFunction,int nLine,const char* pFormat, ...);
 void FuncRunlog(const char* pFunction,int nLine);
 
@@ -199,9 +203,10 @@ class TraceFnTime
     string strInfoInput;
     char *lpCmd = nullptr;
     char *lpReply = nullptr;
+    int  nFileLine = -1;
 
 public:
-    TraceFnTime(char *szCmd,char *szReply);
+    TraceFnTime(char *szCmd,char *szReply,int nLine);
     ~TraceFnTime();
 };
 
@@ -234,7 +239,7 @@ public:
     evolis_set_card_pos     pevolis_set_card_pos     = nullptr;
     evolis_print_init       pevolis_print_init       = nullptr;
     evolis_reset            pevolis_reset            = nullptr;
-    evolis_print_set_option pevolis_print_set_option = nullptr;
+    evolis_print_set_option pfnevolis_print_set_option = nullptr;
     evolis_print_get_option pevolis_print_get_option = nullptr;
     evolis_print_set_imagep pevolis_print_set_imagep = nullptr;
     evolis_status           pevolis_status           = nullptr;
@@ -243,12 +248,22 @@ public:
     evolis_get_mark_name    pevolis_get_mark_name    = nullptr;
     evolis_get_model_name   pevolis_get_model_name   = nullptr;
     evolis_print_set_imageb pevolis_print_set_imageb = nullptr;
-    ssize_t  pevolis_command(evolis_t* printer, const char* cmd, size_t cmdSize, char* reply, size_t replyMaxSize)
+
+#define pevolis_command(P1,P2,P3,P4,P5) ppevolis_command(P1,P2,P3,P4,P5,__LINE__)
+
+    ssize_t  ppevolis_command(evolis_t* printer, const char* cmd, size_t cmdSize, char* reply, size_t replyMaxSize,int nLine)
     {
-        TraceFnTime t((char *)cmd,reply);
+        TraceFnTime t((char *)cmd,reply,nLine);
         //this_thread::sleep_for(chrono::milliseconds(50));
         return pfnevolis_command(printer,cmd,cmdSize,reply,replyMaxSize);
     }
+#define pevolis_print_set_option(P1,P2,P3) ppevolis_print_set_option(P1,P2,P3,__LINE__)
+     int ppevolis_print_set_option(evolis_t* printer, const char* key, const char* value,int nLine)
+     {
+         RunlogF("@Line:%d\tKey = %s\tvalue = %s.\n",nLine,key,value);
+         return pfnevolis_print_set_option(printer,key,value);
+         //return 0;
+     }
 
 public:
     QEvolisPrinter();
@@ -271,8 +286,8 @@ public:
     // nCheckPos = 2 check bezel
     int CheckCardPostion(int *Media,char *szRCode,CheckType nCheckPos = Both);
 
-   int Qt_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,long nTimeout);
-   int Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,long nTimeout,char *pszRcCode);
+    //int Qt_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,long nTimeout);
+    int Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,long nTimeout,char *pszRcCode);
 
     int SetDarkTextRegion(int nLeft,int nTop,int nRight,int nBottom);
     PICINFO m_picInfo;
@@ -280,11 +295,15 @@ public:
     string  strOverlayer;
     string  strPreviewFile = "";
     string  strGRibbonType = "RC_YMCKO";
-    string  strIFDarkLevelValue = "";
     string  strBColorBrightness = "";
     string  strBColorContrast = "";
     string  strFColorBrightness = "";
     string  strFColorContrast = "";
+    string  strIFBlackLevelValue = "15";
+    string  strIFDarkLevelValue = "15";
+    string  strResolution = "";
+    int     nDPI_W = 300;
+    int     nDPI_H = 300;
     bool    bFault = false;
     bool    bOffline = false;
     bool    bHardwareReset = false;

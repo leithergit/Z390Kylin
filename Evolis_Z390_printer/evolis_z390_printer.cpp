@@ -48,9 +48,8 @@ bool g_bEnalbeEvolislog = true;
 int  g_nLogPeriod = 30;
 int g_nEvolis_logLevel = 0;
 
-
-#define RunlogF(...)    Runlog(__PRETTY_FUNCTION__,__LINE__,__VA_ARGS__);
-#define Funclog()       //FuncRunlog(__PRETTY_FUNCTION__,__LINE__);
+//#define RunlogF(...)    Runlog(__PRETTY_FUNCTION__,__LINE__,__VA_ARGS__);
+//#define Funclog()       //FuncRunlog(__PRETTY_FUNCTION__,__LINE__);
 
 //#define     SetAndroidEnv()
 
@@ -147,7 +146,7 @@ extern "C"
             iter.next();
             QFileInfo info = iter.fileInfo();
             if (info.isFile() &&
-                info.created().addDays(30) <= QDateTime::currentDateTime())
+                info.created().addDays(nDays) <= QDateTime::currentDateTime())
             {
                 QFile fileTemp(info.absoluteFilePath());
                 fileTemp.remove();
@@ -160,7 +159,6 @@ extern "C"
     {
         Q_UNUSED(lpReserve);
         QString strCurrentPath = QDir::currentPath();
-
 
         strCurrentPath += "/Evolis_Z390.ini";
         QSettings Setting(strCurrentPath,QSettings::IniFormat);
@@ -2035,6 +2033,7 @@ extern "C"
 		string cmd;
 		string msg;
 		cmd = "";
+        RunlogF("lpCmdIn = %s.",(char *)lpCmdIn);
 		memset(dataBuff, 0x00, 1024);
 
 		char temp[1024] = { 0 };
@@ -2059,6 +2058,42 @@ extern "C"
         CheckResult(RunApdu( "00A40000020012",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
 
         CheckResult(RunApdu( "00B0000042",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
+
+        //判断是否全部为0
+        std::string tempStr = msg.substr(0, msg.length() - 4);
+        bool reAPDU = true;
+        for (size_t i = 0; i < tempStr.length(); i++)
+        {
+            if (tempStr[i] != '0')
+            {
+                reAPDU = false;
+                break;
+            }
+        }
+
+        if (reAPDU)
+        {
+            //校验PIN
+            cmd = "80C4010305C103" + userPIN + "00";
+            CheckResult(RunApdu(cmd.c_str(),msg));
+            std::string HASH = msg.substr(0, msg.length() - 4);
+
+            CheckResult(RunApdu("0084000010",msg));
+            std::string RAM = msg.substr(0, 32);
+            std::string CTK = HASH.substr(0, 32);
+            std::string ENDDATA = SM4Enc(CTK, RAM);
+            //转大写
+            ::transform(ENDDATA.begin(),ENDDATA.end(),ENDDATA.begin(),::toupper);
+
+            cmd = "0020018110" + ENDDATA;
+            CheckResult(RunApdu(cmd.c_str(),msg));
+            //触发公私钥对
+            CheckResult(RunApdu("8040000008C0020012C2020013",msg));
+
+            CheckResult(RunApdu("80C9820008C0020012C2020013",msg));
+
+            CheckResult(RunApdu("80C9828000",msg));
+        }
 
 		string signatureKey = msg.substr(4, msg.length() - 8);
 		string retMsg = "<ROOT>" + CreateNode("QMGY", signatureKey) + "</ROOT>";
@@ -2647,7 +2682,7 @@ extern "C"
             strcpy(pszRcCode, "0000");
             return 0;
         }
-        else if (0 == strcmp(pCommand,"Set IFDarkLevelValue"))
+        else if (0 == strcmp(pCommand,"IFDarkLevelValue"))
         {
             if (!pEvolisPriner)
             {
@@ -2658,6 +2693,48 @@ extern "C"
             pEvolisPriner->strIFDarkLevelValue = (const char *)lpCmdIn;
             strcpy(pszRcCode, "0000");
             return 0;
+        }
+        else if (0 == strcmp(pCommand,"IFBlackLevelValue"))
+        {
+            if (!pEvolisPriner)
+            {
+                strcpy(pszRcCode, "0001");
+                return 1;
+            }
+
+            pEvolisPriner->strIFBlackLevelValue = (const char *)lpCmdIn;
+            strcpy(pszRcCode, "0000");
+            return 0;
+        }
+        else if (0 == strcmp(pCommand,"Resolution"))
+        {
+
+            if (!pEvolisPriner)
+            {
+                strcpy(pszRcCode, "0001");
+                return 1;
+            }
+            RunlogF("Command = %s\tlpCmdIn = %s.",pCommand,(const char *)lpCmdIn);
+            pEvolisPriner->strResolution = (const char *)lpCmdIn;
+            if (pEvolisPriner->strResolution == "DPI600300")
+            {
+                pEvolisPriner->nDPI_H = 300;
+                pEvolisPriner->nDPI_W = 600;
+                strcpy(pszRcCode, "0000");
+                return 0;
+            }
+            else if (pEvolisPriner->strResolution == "DPI300300")
+            {
+                pEvolisPriner->nDPI_H = 300;
+                pEvolisPriner->nDPI_W = 300;
+                strcpy(pszRcCode, "0000");
+                return 0;
+            }
+            else
+            {
+                strcpy(pszRcCode, "0005");
+                return 1;
+            }
         }
         else if (0 == strcmp(pCommand,"Set GRibbonType"))
         {
@@ -2719,7 +2796,7 @@ extern "C"
 		{
 			return ReadBankCard(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
 		}
-		else
+        else if (strstr(pCommand,"WriteCard"))
 		{
 			const char* szWriteCard = "WriteCard:";
             size_t nLen = strlen(szWriteCard);
@@ -2764,6 +2841,21 @@ extern "C"
 				break;
 			}
 		}
+        else if (0 == strcmp(pCommand,"EvolisStatus"))
+        {
+            evolis_status_t es;
+            auto tNow = high_resolution_clock::now();
+            if (pEvolisPriner->pevolis_status(pEvolisPriner->m_pPrinter, &es) != 0)
+            {
+                RunlogF("Error reading printer status\n");
+                strcpy(pszRcCode, "0001");
+                return 1;
+            }
+            auto tDuration = duration_cast<milliseconds>(high_resolution_clock::now() - tNow);
+            RunlogF("pevolis_status duration %d ms\n",tDuration.count());
+            strcpy(pszRcCode, "0000");
+            return 0;
+        }
         return 0;
     }
 
