@@ -302,6 +302,10 @@ public:
     //int Qt_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,long nTimeout);
     int Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,long nTimeout,char *pszRcCode);
 
+    int SetPrinterOptions(evolis_t* printer,string strDPI,string strOverlayer);
+
+    int MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,string &strImagePath,char *pszRcCode,float fScale = 1.0f,float fScale2 = 2.0f);
+
     int SetDarkTextRegion(int nLeft,int nTop,int nRight,int nBottom);
     PICINFO m_picInfo;
     list<TextInfoPtr> m_textInfo;
@@ -314,7 +318,7 @@ public:
     string  strFColorContrast = "";
     string  strIFBlackLevelValue = "15";
     string  strIFDarkLevelValue = "15";
-    string  strResolution = "";
+    string  strResolution = "DPI300300";
     bool    bMarkDPI = false;
     bool    bMarkDateTime = false;
     int     nDPI_W = 300;
