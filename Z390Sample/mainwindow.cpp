@@ -77,25 +77,62 @@ struct ExtraCommand
     QStringList listData;
 };
 ExtraCommand cmdlist[] =
-    {
-        {"ReadBankNo",{}},
-        {"WriteCard:1",{}},
-        {"WriteCard:2",{"RESULT1","RESULT2"}},
-        {"WriteCard:3",{"RESULT","SHBZHM","XM","XB","MZ","CSRQ"}},
-        {"WriteCard:4",{"KSBM","KLB","GFBB","CSHJGBM","FKRQ","KYXQ","KH","RESULT"}},
-        {"WriteCard:5",{"RESULT1","RESULT2"}},
-        {"WriteCard:6",{"<ROOT><USERPIN>123456</USERPIN></ROOT>"}},
-        {"WriteCard:7",{"USERPIN","QMZS","RESULT","JMZS","JMMY","OLDGLYPIN","GLYPIN","OLDZKMY","ZKMY"}},
-        {"EvolisCommand",{}},
+{
+	{"ReadBankNo",{}},
+		{"WriteCard:1",{"<ROOT></ROOT>","<ROOT><AAB301>330800</AAB301><AAZ507>0081544C9686843308070769BE</AAZ507><AFLAG>03</AFLAG><AAZ501>330800D156000005070769BE00000000</AAZ501><SJS1>9348C5AB13BA188D</SJS1><SJS2>8124535CF5CA03D9</SJS2><SJS3>FDA8A1F1B1B399EC</SJS3><SJS4>90B3B7432F47DB57</SJS4><MSGNO>9013</MSGNO></ROOT>"}},
+		{"WriteCard:2",{"RESULT1","RESULT2"}},
+		{"WriteCard:3",{"<ROOT>"
+						"<SHBZHM>330821196605154950</SHBZHM>"
+						"<XM>罗渭泉</XM>"
+						"<XB>1</XB>"
+						"<MZ>01</MZ>"
+						"<CSRQ>19660515</CSRQ>"
+						"<RESULT>B64F27FD740ADF281251002A43FBAC55</RESULT>"
+						"<CARDINFO>330800|||330800D156000005070769C200000000||0081544C9686843308070769C2|3.00|||000000000000|00037261202007000128|</CARDINFO>"
+					   "</ROOT>"}},
+		{"WriteCard:4",{"<ROOT>"
+						"<KSBM>330800D15600000578878883B09158ED</KSBM>"
+						"<KLB>3</KLB>"
+						"<GFBB>3.00</GFBB>"
+						"<CSHJGBM>91560000023308003301009E</CSHJGBM>"
+						"<FKRQ>20211222</FKRQ>"
+						"<KYXQ>20301231</KYXQ>"
+						"<KH>HC0876929</KH>"
+						"<RESULT>B64F27FD740ADF281251002A43FBAC55</RESULT>"
+						"<CARDINFO>330800|330821196605154950||330800D156000005070769C200000000|罗渭泉|0081544C9686843308070769C2|3.00|||000000000000|00037261202007000128|</CARDINFO>"
+						"</ROOT>"}},
+		{"WriteCard:5",{"<ROOT><RESULT1>F63ADD70BC35F2E1981A32D2449DCD5C</RESULT1><RESULT2>3BE496905BEB46A1C4DBB51E9B5B48C6</RESULT2></ROOT>"}},
+		{"WriteCard:6",{"<ROOT><USERPIN>123456</USERPIN></ROOT>"}},
+		{"WriteCard:7",{"<ROOT>"
+						"<USERPIN>123456</USERPIN>"
+						"<QMZS>MIICczCCAhigAwIBAgIQEDMIABAzvg2wJcW0E2fAizAKBggqgRzPVQGDdTCBmTELMAkGA1UEBhMCQ04xDzANBgNVBAgMBuWMl+S6rDEPMA0GA1UEBwwG5YyX5LqsMTMwMQYDVQQKDCrkurrlipvotYTmupDlkoznpL7kvJrkv53pmpzpg6jkv6Hmga/kuK3lv4MxMzAxBgNVBAMMKuS6uuWKm+i1hOa6kOWSjOekvuS8muS/nemanOmDqOS/oeaBr+S4reW/gzAeFw0yMTEyMjAwNDA0MTJaFw0zMTEyMjAwNDA0MTJaMEYxCzAJBgNVBAYTAkNOMRIwEAYDVQQIDAnmtZnmsZ/nnIExDzANBgNVBAcMBuihouW3njESMBAGA1UEAwwJ5ZGo5pmo5paMMFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAETpX8QvmCogczhjRNBnuDv/+4kq4XxZm+F9wH9ZlaghchJeitMGCNRN/MmLJH+7D1p74ZzT1xxY1va2yVYrU4tqOBkzCBkDAfBgNVHSMEGDAWgBQTNh4KhBOBhLgty8el34802MpFPTAdBgNVHQ4EFgQUYJ5zOw6GDZar1tLxCuvJecDb1iQwCwYDVR0PBAQDAgbAMBQGByqBHJIMAQEECUhDMDg1ODk2NjArBgcqgRySDAECBCBehzGYk0Rdd6Gc+TQXxlWABua9muC1c2wp6dZHYXawhTAKBggqgRzPVQGDdQNJADBGAiEApvXWifp6nJ32om7oSPWLlXYzGDAzxAYDQVXD8FC4ZvMCIQD6XYNBngQt1yDr7NSb9BrI9Mw/AgiD3r9m70P7x4z6Yw==</QMZS>"
+						"<JMZS>MIICcDCCAhagAwIBAgIQIDMIABAzsvOFyRblbI1B3zAKBggqgRzPVQGDdTCBmTELMAkGA1UEBhMCQ04xDzANBgNVBAgMBuWMl+S6rDEPMA0GA1UEBwwG5YyX5LqsMTMwMQYDVQQKDCrkurrlipvotYTmupDlkoznpL7kvJrkv53pmpzpg6jkv6Hmga/kuK3lv4MxMzAxBgNVBAMMKuS6uuWKm+i1hOa6kOWSjOekvuS8muS/nemanOmDqOS/oeaBr+S4reW/gzAeFw0yMTEyMjAwNDA0MTJaFw0zMTEyMjAwNDA0MTJaMEYxCzAJBgNVBAYTAkNOMRIwEAYDVQQIDAnmtZnmsZ/nnIExDzANBgNVBAcMBuihouW3njESMBAGA1UEAwwJ5ZGo5pmo5paMMFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEzMkYdArEqeKFy2jfgpin9rKzCGDggOz7HM7VaRDqrsGQucutm2Vp0Ie8TRtPQC1xAxvCidmvH3TbzOMShWGgVKOBkTCBjjAfBgNVHSMEGDAWgBQTNh4KhBOBhLgty8el34802MpFPTAdBgNVHQ4EFgQUN4pJAOVN5LOmYT8DbJlrpRxhthswCwYDVR0PBAQDAgQwMBMGBiqBHJIMAQQJSEMwODU4OTY2MCoGBiqBHJIMAgQgXocxmJNEXXehnPk0F8ZVgAbmvZrgtXNsKenWR2F2sIUwCgYIKoEcz1UBg3UDSAAwRQIhAMO6ldj7RGptoKd4iP1a9jdoHrJHTi+fWz1FTfwOMZqhAiAjCnHJCwilDWQgwfAQ1wqGYMx7jJKB8929lcgVoL3s0g==</JMZS>"
+						"<JMMY>AQAAAAEEAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACDWqX9nfIYB/t+zWVF8ofm/XYijp85Slk/Tln2x2ImugABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMzJGHQKxKnihcto34KYp/ayswhg4IDs+xzO1WkQ6q7BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACQucutm2Vp0Ie8TRtPQC1xAxvCidmvH3TbzOMShWGgVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd4C3QRf3mKZNOF73BG28AtaFOOdeI6by6biNL5QVo8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFwcCVpMfLKmLRNtQFisCstdEkS6BWX8TuhC2duA+oYW2/D3kjB6xi6XScDmX5WaLMZs8EjHejqaUT04iXK5rn4QAAAAnkVfNLaihb0ehYAzk1h04g==</JMMY>"
+						"<OLDGLYPIN>12345678</OLDGLYPIN>"
+						"<GLYPIN>23158782</GLYPIN>"
+						"<OLDZKMY>D5E3BDADCAA1C9E7BBE1B1A3D5CFBFA8</OLDZKMY>"
+						"<ZKMY>32353733383033303731333535383031</ZKMY>"
+						"</ROOT>"}},
+	{"WriteCitizenCard_3303:01",{"{\"QYBZ\":\"01\"}"},},
+	{"WriteCitizenCard_3304:01",{"{}"}},
+	{"WriteCardEx_WenZhou:01",{"{}"}},
+	// {"RESULT1":"1322C24C05E47A32410C6F1506A9B23C","RESULT2":"51D6ECEAB5076220E135CD36B09BAFAD"}
+	{"WriteCardEx_WenZhou:02",{"{\"RESULT1\":\"1322C24C05E47A32410C6F1506A9B23C\",\"RESULT2\":\"51D6ECEAB5076220E135CD36B09BAFAD\"}"}},
+	{"WriteCardEx_WenZhou:03",{"{}"}},
+	{"WriteCardEx_WenZhou:04",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ADDR\":\"浙江省温州市龙湾区张家\",\"PHONE\":\"18888179633\"}").toLocal8Bit().data()}},
+	{"WriteCardEx_WenZhou:05",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ORGCODE\":\"123456\"}").toLocal8Bit().data()}},
+	{"WriteCardEx_WenZhou:06",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"COUNTRY\":\"CHN\"}").toLocal8Bit().data()}},
+	{"EvolisCommand",{}},
         {"Reset Delay",{"5000"}},
         {"Set DeviceReset",{"True","False"}},
         {"EnableOutput",{"True","False"}},
         {"Enablelog",{"True","False"}},
         {"RibbonStatus",{}},
-   };
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+
+};
+MainWindow::MainWindow(QWidget* parent)
+	: QMainWindow(parent)
+	, ui(new Ui::MainWindow)
 {
     //setOrientation(SCREEN_ORIENTATION_LANDSCAPE);
     ui->setupUi(this);
@@ -624,11 +661,21 @@ void MainWindow::on_pushButton_ExtraCommand_clicked()
     //pPrinterInstance->Print_IcPowerOff(lTimeout, szRCode);
     //Result(x,pPrinterInstance->Print_IcPowerOn(lTimeout,szout,nArtlen,(unsigned char *)szUID,nUidLen,szRCode));
 
-    QString qstrCommand = ui->comboBox_Extracommand->currentText();
-    QByteArray baCommand = qstrCommand.toLatin1();
-
-    QString qstrData = ui->comboBox_ExtracommandData->currentText();
-    QByteArray baData = qstrData.toLatin1();
+	QString qstrCommand = ui->comboBox_Extracommand->currentText();
+	QByteArray baCommand = qstrCommand.toLatin1();
+	QByteArray baData;
+	QString qstrData;
+	if (qstrCommand == "WriteCardEx_WenZhou:03")
+	{
+		QFile file("./WriteCardEx_WenZhou_03.json");
+		file.open(QIODevice::ReadOnly);
+		baData = file.readAll();
+	}
+	else
+	{
+		qstrData = ui->comboBox_ExtracommandData->currentText();
+		baData = qstrData.toLatin1();
+	}
 
     LPVOID szCommandout = nullptr;
     if (pPrinterInstance->Print_ExtraCommand(lTimeout,baCommand.data(),baData.data(),szCommandout,szRCode))

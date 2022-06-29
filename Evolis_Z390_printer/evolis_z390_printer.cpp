@@ -185,20 +185,20 @@ extern "C"
                 QDir dir(strCurrentPath);
                 if (!dir.exists())
                     dir.mkpath(strCurrentPath);
-                sprintf(szFileName,"%s/Z390_%04d%02d%02d_%02d%02d%02d.log",strCurrentPath.toUtf8().data(),
+                sprintf(szFileName,"%s/Z390_%04d%02d%02d.log",strCurrentPath.toUtf8().data(),
                                 tNow.date().year(),
                                 tNow.date().month(),
-                                tNow.date().day(),
-                                tNow.time().hour(),
-                                tNow.time().minute(),
-                                tNow.time().second());
-                sprintf(szFileName2,"%s/Evolis_%04d%02d%02d_%02d%02d%02d.log",strCurrentPath.toUtf8().data(),
-                                tNow.date().year(),
-                                tNow.date().month(),
-                                tNow.date().day(),
-                                tNow.time().hour(),
-                                tNow.time().minute(),
-                                tNow.time().second());
+                                tNow.date().day());
+//                                tNow.time().hour(),
+//                                tNow.time().minute(),
+//                                tNow.time().second());
+//                sprintf(szFileName2,"%s/Evolis_%04d%02d%02d_%02d%02d%02d.log",strCurrentPath.toUtf8().data(),
+//                                tNow.date().year(),
+//                                tNow.date().month(),
+//                                tNow.date().day(),
+//                                tNow.time().hour(),
+//                                tNow.time().minute(),
+//                                tNow.time().second());
                 pFilelog = new QFile(szFileName);
                 if (pFilelog)
                 { /*
@@ -1057,7 +1057,7 @@ extern "C"
     };
 
 
-   bool Evolis_Z390_Printer::RunApdu(string cmd,string &OutMsg)
+   bool Evolis_Z390_Printer::RunApdu(string cmd,string &OutMsg,bool bCheckResult )
 	{
         Funclog();
         char dataBuff[1024] = { 0 };
@@ -1081,11 +1081,16 @@ extern "C"
             OutMsg = dataBuff;
         else
             return false;
-        if ("9000" != OutMsg.substr(OutMsg.length() - 4, 4))
-        {
-            RunlogF("The recieved data is invalid.\n");
+        if (!bCheckResult)
+       {
+           RunlogF("Skip Result check.\n");
+           return true;
+       }
+       if ("9000" != OutMsg.substr(OutMsg.length() - 4, 4))
+       {
+           RunlogF("The recieved data is invalid.\n");
            return false;
-        }
+       }
         return true;
     }
 
@@ -1371,6 +1376,33 @@ extern "C"
         return 0;
     }
 
+    int Evolis_Z390_Printer::ResetCard(char *pszRCode)
+    {
+        if (!pReader)
+        {
+            strcpy(pszRCode, "0001");
+            RunlogF("ResetCard Failed.\n");
+            return 1;
+        }
+        int ret = 0;
+        char dataBuffer[1024] = { 0 };
+        RunlogF("Try to dc_cpureset_hex.");
+        if (pReader->PowerOn(dataBuffer,ret))
+        {
+            strcpy(pszRCode, "0005");
+            RunlogF("dc_cpureset_hex Failed.\n");
+            return 1;
+        }
+
+        CardATR = dataBuffer;
+        string strInfo = "ATR:" + CardATR;
+        RunlogF("ATR:%s",strInfo.c_str());
+        m_CardInfo.ATR = CardATR.substr(8, 26);
+        strcpy(pszRCode,"0000");
+        return 0;
+    }
+
+
     int Evolis_Z390_Printer::WriteCard1(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode)
 	{
         Q_UNUSED(lTimeout);
@@ -1382,6 +1414,7 @@ extern "C"
 		string msg;
 		cmd = "";
 		memset(dataBuff, 0x00, 1024);
+        RunlogF("lpCmdIn = %s.\n",(char *)lpCmdIn);
 
 		string random1;
 		string random2;
@@ -1446,7 +1479,7 @@ extern "C"
 			+ "</ROOT>";		
 		String2Char(retMsg.c_str());
 		lpCmdOut = cpOutMsg;		
-        //RunlogF((char*)lpCmdOut);
+        RunlogF("lpCmdOut = %s.\n",(char*)lpCmdOut);
 		strcpy(pszRcCode, "0000");
 		return 0;
 	}
@@ -1462,7 +1495,7 @@ extern "C"
 		string msg;
 		cmd = "";
 		memset(dataBuff, 0x00, 1024);
-
+        RunlogF("lpCmdIn = %s.\n",(char *)lpCmdIn);
 		//解析xml
 		string keyAddr = "0094";
 		string disFactor;
@@ -1568,6 +1601,7 @@ extern "C"
 
 		String2Char(retMsg.c_str());
         lpCmdOut = cpOutMsg;
+        RunlogF("lpCmdOut = %s.\n",(char*)lpCmdOut);
 		strcpy(pszRcCode, "0000");
 		return 0;
 	}
@@ -1582,6 +1616,11 @@ extern "C"
 		string cmd;
 		string msg;
 		cmd = "";
+        RunlogF("lpCmdIn = %s.\n",(char *)lpCmdIn);
+        //string strResult = "<ROOT><AAB301></AAB301><AAC002>330821196605154950</AAC002><AAZ500></AAZ500><AAZ501></AAZ501><AAC003>3F3F3F000000000000000000000000000000000000000000000000000000</AAC003><AAZ507></AAZ507><AFLAG>03</AFLAG><KEYADD>0096</KEYADD><KEYFAC>2F59BA07857AFFB0</KEYFAC><ODATA>EC8C0C0939B315B7</ODATA><MSGNO>9011</MSGNO><CARDINFO>|330821196605154950|||3F3F3F000000000000000000000000000000000000000000000000000000|||||000000000000|00037261202007000128|</CARDINFO><ROOT>";
+        //strcpy(cpOutMsg,strResult.c_str());
+        //lpCmdOut = cpOutMsg;
+        //return 0;
 		memset(dataBuff, 0x00, 1024);
 
 		string keyAddr = "0096";
@@ -1623,9 +1662,14 @@ extern "C"
 			strcpy(pszRcCode, "0001");
 			//strcat(pszRcCode, szErr);
 			RunlogF(pszRcCode);
-			return 1;
-		}
-		tempName = m_newInfos.name = temp;
+            return 1;
+        }
+        tempName = temp;
+        //QString strUTF8 = QString::fromLocal8Bit(tempName.c_);
+        RunlogF("Input Name = %s",temp);
+        string strGBKName = Utf8_GBK(tempName.c_str());
+        RunlogF("GBK Name = %s",strGBKName.c_str());
+        tempName = strGBKName;
 
 		memset(temp, 0x00, sizeof(temp));
 		memset(szErr, 0x00, sizeof(szErr));
@@ -1673,8 +1717,8 @@ extern "C"
 		tempCardID = temp;
         //RunlogF(tempCardID.c_str());
 
-		memset(temp, 0x00, 1024);
-        pReader->hex_a((unsigned char*)tempName.c_str(), (unsigned char*)temp, tempName.length());
+        memset(temp, 0x00, 1024);
+        pReader->hex_a((unsigned char*)strGBKName.c_str(), (unsigned char*)temp, strGBKName.size());
 		//m_newInfos.name = temp;
 		tempName = temp;
         //RunlogF(tempName.c_str());
@@ -1683,6 +1727,7 @@ extern "C"
 		{
 			tempName += "0";
 		}
+        m_newInfos.name = tempName;
         //RunlogF(tempName.c_str());
 
 		memset(temp, 0x00, 1024);
@@ -1741,7 +1786,7 @@ extern "C"
 		lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
 
 		//lpCmdOut = (LPVOID)retMsg.c_str();
-        //RunlogF((char*)lpCmdOut);
+        RunlogF("lpCmdOut = %s.\n",(char*)lpCmdOut);
 		strcat(pszRcCode, "0000");
 		return 0;
 	}
@@ -1757,6 +1802,7 @@ extern "C"
 		string msg;
 		cmd = "";
 		memset(dataBuff, 0x00, 1024);
+        RunlogF("lpCmdIn = %s.\n",(char *)lpCmdIn);
 
 		char temp[1024] = { 0 };
 		char szErr[1024] = { 0 };
@@ -1909,7 +1955,7 @@ extern "C"
 		String2Char(retMsg.c_str());
         //RunlogF(cpOutMsg);
 		lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
-        //RunlogF((char*)lpCmdOut);
+        RunlogF("lpCmdOut = %s.\n",(char*)lpCmdOut);
 		strcpy(pszRcCode, "0000");
 		return 0;
 	}
@@ -1925,6 +1971,7 @@ extern "C"
 		string msg;
 		cmd = "";
 		memset(dataBuff, 0x00, 1024);
+        RunlogF("lpCmdIn = %s.\n",(char *)lpCmdIn);
 
 		char temp[1024] = { 0 };
 		char szErr[1024] = { 0 };
@@ -2018,7 +2065,7 @@ extern "C"
         //RunlogF(cpOutMsg);
 		lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
 
-        //RunlogF((char*)lpCmdOut);
+        RunlogF("lpCmdOut = %s.\n",(char*)lpCmdOut);
 		strcpy(pszRcCode, "0000");
 		return 0;
 	}
@@ -2032,9 +2079,9 @@ extern "C"
 		char dataBuff[1024];
 		string cmd;
 		string msg;
-		cmd = "";
-        RunlogF("lpCmdIn = %s.",(char *)lpCmdIn);
+		cmd = "";       
 		memset(dataBuff, 0x00, 1024);
+        RunlogF("lpCmdIn = %s.",(char *)lpCmdIn);
 
 		char temp[1024] = { 0 };
 		char szErr[1024] = { 0 };
@@ -2103,21 +2150,28 @@ extern "C"
 		String2Char(retMsg.c_str());
         //RunlogF(cpOutMsg);
 		lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
-        //RunlogF((char*)lpCmdOut);
+        RunlogF("lpCmdOut = %s.\n",(char*)lpCmdOut);
 		return 0;
 	}
+
 
     int Evolis_Z390_Printer::WriteCard7(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode)
 	{
         Q_UNUSED(lTimeout);
         Q_UNUSED(pCommand);
         Q_UNUSED(lpCmdOut);
+        if (!lpCmdIn)
+        {
+            strcpy(pszRcCode,"0001");
+            return 1;
+        }
 		int ret = 1;
 		char dataBuff[1024];
 		string cmd;
 		string msg;
 		cmd = "";
 		memset(dataBuff, 0x00, 1024);
+        RunlogF("lpCmdIn = %s.\n",(char *)lpCmdIn);
 
 		char temp[102400] = { 0 };
 		char szErr[1024] = { 0 };
@@ -2142,6 +2196,11 @@ extern "C"
 		string ENDATA = "";
 		string DATA = "";
 		string MAC = "";
+        if (ResetCard(pszRcCode))              // 卡片复位
+        {
+            RunlogF("Failed in Resetcard:%s",pszRcCode);
+            return 1;
+        }
 
 		memset(temp, 0x00, sizeof(temp));
 		memset(szErr, 0x00, sizeof(szErr));
@@ -2308,9 +2367,11 @@ extern "C"
 
 		//return 1;
 #if 1
-        CheckResult( RunApdu( "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //
+        CheckResult(RunApdu("00A40000023F00",msg,false));
 
-        CheckResult(RunApdu( "00A404000C53532E434552542E41444631",msg)); //
+        CheckResult(RunApdu("00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //
+
+        CheckResult(RunApdu("00A404000C53532E434552542E41444631",msg)); //
 
         cmd = "80C4010305C103" + UPIN + "00";
         CheckResult(RunApdu( cmd,msg)); //"3DE741F445DD357BEA4E6C3FE6437036F62B5E3EC0F00D62796EDB4305ED627F9000";

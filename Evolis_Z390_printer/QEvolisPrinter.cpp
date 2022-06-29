@@ -700,12 +700,13 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
    char szReply[64] = {0};
    const char *szCmd[]={
                         "Pem;2",       // 将打印机自动纠错复位禁用，完全由上位程序发送指令
-                       // "Psmgr;2",     // 防止进卡和出卡阻塞
+                        "Psmgr;2",     // 防止进卡和出卡阻塞
                         "Pcim;F",      // 从卡箱进卡
                         "Pcem;I",      // 从出卡口出卡
                         "Pneab;E",     // 打印结束后不出卡
                         "Pcrm;D",      // 设定出卡箱为废卡箱
-                        "Pbc;A;D"
+                        "Pbc;A;D",
+                        "Pfs;700;660;1200;500;1700"//decrease the speed of depense
                        };
 
     for (auto var:szCmd)
@@ -2675,94 +2676,3 @@ int  QEvolisPrinter::SendCommand(const char *lpCmdIn,LPVOID &lpCmdOut,char *pszR
          return 0;
      }
 }
-
-
-//void  QEvolisPrinter::PrintText()
-//{
-//    int nAngle = 180;
-//    int size = 8;
-
-//    QString strUser    = "姓名  测试用户";
-//    QString strID      = "社会保障号码  123456789012345678";
-//    QString strCard    = "社会保障卡号  ABCDEFGHIJKLMN";
-//    QString strDate    = "发卡日期  2019年9月27日";
-//    AddText(strUser.toLocal8Bit().data(),nAngle,28,14.5,size,0);
-//    AddText(strID.toLocal8Bit().data(),nAngle,28,19,size,0);
-//    AddText(strCard.toLocal8Bit().data(),nAngle,28,23.5,size,0);
-//    AddText(strDate.toLocal8Bit().data(),nAngle,28,28,size,0);
-//    Mat canvas(nCardHeight,nCardWidth,CV_8UC3,Scalar(255,255,255));
-//    int nDarkLeft = 0,nDarkTop = 0,nDarkRight = 0,nDarkBottom = 0;
-//    for (auto var : m_textInfo)
-//    {
-//        //RunlogF("Text = %s,FontSize = %d,xPos = %.02f,yPos = %.2f.\n",var->sText.c_str(),var->nFontSize);
-//        Rect rtROI(MM2Pixel(var->fxPos), MM2Pixel(var->fyPos),nCardWidth - MM2Pixel(var->fxPos) - 2, nCardHeight - MM2Pixel(var->fyPos) - 2);
-//        if (!nDarkLeft)
-//            nDarkLeft = rtROI.x;
-//        else
-//            nDarkLeft = nDarkLeft<=rtROI.x?nDarkLeft:rtROI.x;
-//        if (!nDarkTop)
-//            nDarkTop = rtROI.y;
-//        else
-//            nDarkTop = nDarkTop<=rtROI.y?nDarkTop:rtROI.y;
-//        if (!nDarkRight)
-//            nDarkRight = rtROI.x + rtROI.width;
-//        else
-//            nDarkRight = nDarkRight>=(rtROI.x + rtROI.width)?nDarkRight:(rtROI.x + rtROI.width);
-//        if (!nDarkBottom)
-//            nDarkBottom = rtROI.y + rtROI.height;
-//        else
-//            nDarkBottom = nDarkBottom>=(rtROI.y + rtROI.height)?nDarkBottom:(rtROI.y + rtROI.height);
-
-//        Mat FontROI = canvas(rtROI);
-//        int fontHeight = (int)round(MM2Pixel(Pt2MM(var->nFontSize)));
-//        RunlogF("Text = %s,FontSize = %.2f, FontPixel = %d.\n",var->sText.c_str(),var->nFontSize,fontHeight);
-//        try
-//        {
-//            cv::Ptr<cv::freetype::FreeType2> ft2;
-//            ft2 = cv::freetype::createFreeType2();
-
-//            ft2->loadFontData(var->pFontName, 0); //加载字库文件
-//            ft2->putText(FontROI, var->sText.c_str(), cv::Point(0, 0), fontHeight, CV_RGB(0, 0, 0), -1, CV_AA, false/*,var->nFontStyle == 2*/);
-//        }
-//        catch (std::exception &e)
-//        {
-//            RunlogF("Catch a exception:%s.\n",e.what());
-//            return ;
-//        }
-//    }
-
-//    if (strPreviewFile.size())
-//        imwrite(strPreviewFile.c_str(),canvas);
-//    QString strTempFile = QDir::currentPath();
-//    strTempFile += "/PrintTemp.bmp";
-
-//    flip(canvas, canvas, 0);// 翻转模式，flipCode == 0垂直翻转（沿X轴翻转），flipCode>0水平翻转（沿Y轴翻转），flipCode<0水平垂直翻转（先沿X轴翻转，再沿Y轴翻转，等价于旋转180°）
-//    flip(canvas, canvas, 1);
-
-//    imwrite(strTempFile.toUtf8().data(),canvas);
-//    strOverlayer = QDir::currentPath().toStdString();
-//    strOverlayer += ":/iso.bmp";
-//    QFileInfo fi(strOverlayer.c_str());
-//    if (!fi.isFile())
-//    {
-//        RunlogF("Can't open file %s.\n",strOverlayer.c_str());
-//        return ;
-//    }
-
-//}
-//void QEvolisPrinter::AddText(char *szText,int nAngle, float fxPos, float fyPos, int nFontSize, int nColor)
-//{
-//    TextInfoPtr inTextInfo = std::make_shared<TextInfo>();
-//    char szUtf8[256] = {0};
-
-//    inTextInfo->sText = szText;
-//    inTextInfo->nAngle = nAngle;
-//    inTextInfo->fxPos = fxPos;
-//    inTextInfo->fyPos = fyPos;
-//    inTextInfo->pFontName = ":/Sumsun.ttf";
-//    inTextInfo->nFontSize = nFontSize;
-//    inTextInfo->nFontStyle = 1;
-//    inTextInfo->nColor = nColor;
-//    inTextInfo->nType = 0;  //文字是0
-//    m_textInfo.push_back(inTextInfo);
-//}

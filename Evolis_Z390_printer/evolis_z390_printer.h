@@ -270,7 +270,7 @@ public:
 
         bool FindCard(string &strBuffer,string &strNumber);
 
-        bool RunApdu(string cmd,string &strOutmsg);
+        bool RunApdu(string cmd,string &strOutmsg,bool bCheckResult = true);
         /** @ingroup CLithographPrinter Function declaration
           * @brief  扩展命令
           * @param[in] pCommand 命令字符串
@@ -318,6 +318,8 @@ public:
         string QueryNode_Text(void* pRootEle, const char* strNodeName);
         bool GetNodePointerByName(void* pRootEle, const char* strNodeName, void*& Node);
 		string GetYYYYMMDD(char* pDate);
+
+        int ResetCard(char * pszRCode);
 
         bool WriteFile( string fileID, string tag, string val, string &strOutmsg);
         bool WriteCA( string fileID, string tag, string val,string &strOutmsg);
