@@ -12,6 +12,9 @@
 #include <algorithm>
 #include <QDir>
 #include <QDateTime>
+#include <fstream>
+#include <sstream>
+#include <turbojpeg.h>
 #include "QEvolisPrinter.h"
 #include "AES.h"
 #include <opencv2/opencv.hpp>
@@ -115,7 +118,7 @@ void Runlog(const char* pFunction,int nLine,const char* pFormat, ...)
     va_list args;
     va_start(args, pFormat);
     int nBuff;
-    CHAR szBuffer[1024] = {0};
+    CHAR szBuffer[16484] = {0};
     nBuff = vsnprintf(szBuffer, __countof(szBuffer), pFormat, args);
     va_end(args);
 
@@ -434,6 +437,7 @@ QEvolisPrinter::QEvolisPrinter()
     Funclog();
     QString strLib = QDir::currentPath();
     strLib += "/libevolis.so";
+    //strLib += "libKT-R85.so";
     pHandle = dlopen(strLib.toUtf8().data(),RTLD_NOW|RTLD_GLOBAL);
     if (!pHandle)
     {
@@ -625,12 +629,12 @@ void QEvolisPrinter::CreateEvolislog()
                         tNow.time().hour(),
                         tNow.time().minute(),
                         tNow.time().second());
-       RunlogF("evolis_log_set_path(%s)",szFileName);
-       pevolis_log_set_path(szFileName);
-       if (g_nEvolis_logLevel < 0 || g_nEvolis_logLevel > 4)
-           g_nEvolis_logLevel = 0;
-       RunlogF("evolis_log_set_level(%d)",g_nEvolis_logLevel);
-       pevolis_log_set_level((evolis_log_t)g_nEvolis_logLevel);
+//       RunlogF("evolis_log_set_path(%s)",szFileName);
+//       pevolis_log_set_path(szFileName);
+//       if (g_nEvolis_logLevel < 0 || g_nEvolis_logLevel > 4)
+//           g_nEvolis_logLevel = 0;
+//       RunlogF("evolis_log_set_level(%d)",g_nEvolis_logLevel);
+//       pevolis_log_set_level((evolis_log_t)g_nEvolis_logLevel);
     }
 }
 
@@ -2045,274 +2049,10 @@ int QEvolisPrinter::SetDarkTextRegion(int nLeft, int nTop, int nRight, int nBott
 
 }
 
-
 #define LOBYTE(w)         ((unsigned char)(((ULONG)(w)) & 0xff))
 #define Value_R(rgb)      (LOBYTE(rgb))
 #define Value_G(rgb)      (LOBYTE(((WORD)(rgb)) >> 8))
 #define Value_B(rgb)      (LOBYTE((rgb)>>16))
-
-//int QEvolisPrinter::Qt_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,long nTimeout)
-//{
-//	Funclog();
-//	CheckHandle2();
-
-//	if (!m_pPrinter)
-//	   return 1;
-//    auto tStart = high_resolution_clock::now();
-//	QFileInfo fipic(inPicInfo.picpath.c_str());
-//	if (!fipic.isFile() && !inTextVector.size())
-//	{
-//	   RunlogF("There is no any content to print!\n");
-//	   return 1;
-//	}
-    
-//    if (pevolis_print_init((evolis_t*)m_pPrinter))
-//    {
-//        RunlogF("evolis_print_init failed.\n");
-//        return 1;
-//    }
-
-//   if (strFColorBrightness.size())
-//   {
-//       if (!pevolis_print_set_option((evolis_t*)m_pPrinter,"FColorBrightness",strFColorBrightness.c_str()))
-//       {
-//            RunlogF("Failed in evolis_print_set_option(%s,%s).\n","FColorBrightness",strFColorBrightness.c_str());
-//            bFault = true;
-//       }
-//   }
-
-//   if (strBColorBrightness.size())
-//   {
-//       if (!pevolis_print_set_option((evolis_t*)m_pPrinter,"BColorBrightness",strBColorBrightness.c_str()))
-//       {
-//            RunlogF("Failed in evolis_print_set_option(%s,%s).\n","BColorBrightness",strBColorBrightness.c_str());
-//            bFault = true;
-//       }
-//   }
-
-//   if (strFColorContrast.size())
-//   {
-//       if (!pevolis_print_set_option((evolis_t*)m_pPrinter,"FColorContrast",strFColorContrast.c_str()))
-//       {
-//            RunlogF("Failed in evolis_print_set_option(%s,%s).\n","FColorContrast",strFColorContrast.c_str());
-//            bFault = true;
-//       }
-//   }
-
-//   if (strBColorContrast.size())
-//   {
-//       if (!pevolis_print_set_option((evolis_t*)m_pPrinter,"BColorContrast",strBColorContrast.c_str()))
-//       {
-//            RunlogF("Failed in evolis_print_set_option(%s,%s).\n","BColorContrast",strBColorContrast.c_str());
-//            bFault = true;
-//       }
-//   }
-//    const char *szCmd[]={"Rrt;count","Pneab;A;0","Pneab;A;1"};
-//    char szReply[64] = {0};
-//    int nIdx = 0;
-//    RunlogF("Try to evolis_command(%s).\n",szCmd[nIdx]);
-//    if (pevolis_command(m_pPrinter,szCmd[nIdx],strlen(szCmd[nIdx]),szReply,sizeof(szReply)) < 0)
-//    {
-//        RunlogF("Failed in evolis_command(%s).\n",szCmd[nIdx]);
-//        bFault = true;
-//        return 1;
-//    }
-
-//    int nRibbonCount = strtol(szReply,nullptr,10);
-//    if (nRibbonCount <= 0)
-//    {
-//        RunlogF("The ribbon is exhausted and printing failed.\n");
-//        return 1;
-//    }
-//    nIdx++;
-//    RunlogF("Try to evolis_command(%s).\n",szCmd[nIdx]);
-//    if (pevolis_command(m_pPrinter,szCmd[nIdx],strlen(szCmd[nIdx]),szReply,sizeof(szReply)) < 0)
-//    {
-//        RunlogF("Failed in evolis_command(%s).\n",szCmd[nIdx]);
-//        bFault = true;
-//        return 1;
-//    }
-
-//    nIdx++;
-
-//    QImage Convas(nCardWidth,nCardHeight,  QImage::Format_RGB888);
-//    Convas.fill(Qt::white);
-//    QPainter painter(&Convas);
-//    painter.setCompositionMode(QPainter::CompositionMode_Source);
-//    QImage FileImage;
-//    if (!FileImage.load(QString::fromStdString( inPicInfo.picpath)))
-//    {
-//        RunlogF("Failed in load file :%s.\n",inPicInfo.picpath.c_str());
-//        return 1;
-//    }
-//    RunlogF("Graph:%s\txPos = %.1f\tyPos = %.1f\tAngle = %d.\n",inPicInfo.picpath.c_str(),inPicInfo.fxPos,inPicInfo.fyPos,inPicInfo.nAngle);
-//    painter.save();
-//    painter.translate(nCardWidth/2,nCardHeight/2);
-//    painter.rotate(inPicInfo.nAngle);
-//    painter.translate(-nCardWidth/2,-nCardHeight/2);
-//    painter.drawImage(QRect(MM2Pixel(inPicInfo.fxPos),MM2Pixel(inPicInfo.fyPos),MM2Pixel(inPicInfo.fWidth),MM2Pixel(inPicInfo.fHeight)),FileImage);
-//    painter.restore();
-
-//    int nDarkLeft = 0,nDarkTop = 0,nDarkRight = 0,nDarkBottom = 0;
-//    for (auto var : inTextVector)
-//    {
-//        QString imageText = QString::fromStdString(var->sText);
-
-//       RunlogF("Text = %s,FontSize = %d,xPos = %.02f,yPos = %.2f.\n",var->sText.c_str(),var->nFontSize);
-//       QRect rtROI(MM2Pixel(var->fxPos), MM2Pixel(var->fyPos),nCardWidth - MM2Pixel(var->fxPos) - 2, nCardHeight - MM2Pixel(var->fyPos) - 2);
-//       if (!nDarkLeft)
-//           nDarkLeft = rtROI.left();
-//       else
-//           nDarkLeft = nDarkLeft<=rtROI.left()?nDarkLeft:rtROI.left();
-//       if (!nDarkTop)
-//           nDarkTop = rtROI.top();
-//       else
-//           nDarkTop = nDarkTop<=rtROI.top()?nDarkTop:rtROI.top();
-//       if (!nDarkRight)
-//           nDarkRight = rtROI.left() + rtROI.width();
-//       else
-//           nDarkRight = nDarkRight>=(rtROI.left() + rtROI.width())?nDarkRight:(rtROI.left() + rtROI.width());
-//       if (!nDarkBottom)
-//           nDarkBottom = rtROI.top() + rtROI.height();
-//       else
-//           nDarkBottom = nDarkBottom>=(rtROI.top() + rtROI.height())?nDarkBottom:(rtROI.top() + rtROI.height());
-
-
-//        QFont font(strFontSimsun);
-//        //设置显示字体的大小
-//        int nFontSize = (int)round(MM2Pixel(Pt2MM(var->nFontSize)));
-//        font.setPixelSize(nFontSize);
-//        QFontMetrics fm(font);
-
-//        auto TextRect = fm.boundingRect(imageText);
-//        painter.setFont(font);
-//        QPen pen = painter.pen();
-
-//        pen.setColor(QColor(Value_R(var->nColor),Value_G(var->nColor),Value_B(var->nColor)));
-//        painter.setPen(pen);
-//        RunlogF("Text:%s\txPos = %.1f\tyPos = %.1f\tAngle = %d.\n",var->sText.c_str(),var->fxPos,var->fyPos,var->nAngle);
-//        painter.save();
-//        painter.translate(nCardWidth/2,nCardHeight/2);
-//        painter.rotate(var->nAngle);
-//        painter.translate(-nCardWidth/2,-nCardHeight/2);
-//        painter.drawText(QRectF(MM2Pixel(var->fxPos), MM2Pixel(var->fyPos), MM2Pixel(TextRect.width()), MM2Pixel(TextRect.height())), Qt::AlignLeft | Qt::AlignTop, imageText);
-//        painter.restore();
-//    }
-//    QString strTempFile = QDir::currentPath();
-//    strTempFile += "/PrintTemp.bmp";
-//    Convas.save(strTempFile);
-
-//    char *pFileBuffer = nullptr;
-//    int nBufferSize = Convert_dib(&pFileBuffer,Convas);
-//    if (!nBufferSize)
-//    {
-//        if (pFileBuffer)
-//            delete []pFileBuffer;
-//        RunlogF("failed in  Convert_dib:%s.\n");
-//        return 1;
-//    }
-//    shared_ptr<char> Buffdealloc(pFileBuffer);
-//   strOverlayer = QDir::currentPath().toStdString();
-//   strOverlayer += "/resources/iso.bmp";
-//   QFileInfo fi(strOverlayer.c_str());
-//   if (!fi.isFile())
-//   {
-//       RunlogF("Can't open file %s.\n",strOverlayer.c_str());
-//       return 1;
-//   }
-//   if (pevolis_print_set_option(m_pPrinter,"IFOverlayCustom",strOverlayer.c_str()))
-//   {
-//       RunlogF("Failed in evolis_print_set_option(FOverlayManagement,BMPVARNISH).\n",strOverlayer.c_str());
-//       return 1;
-//   }
-
-//   if (strGRibbonType.size())
-//   {
-//       if (pevolis_print_set_option(m_pPrinter, "GRibbonType", strGRibbonType.c_str()))
-//       {
-//           RunlogF("Failed in evolis_print_set_option(GRibbonType,%s).\n",strGRibbonType.c_str());
-//           return 1;
-//       }
-//   }
-
-//   if (pevolis_print_set_option(m_pPrinter,"FOverlayManagement", "BMPVARNISH"))
-//   {
-//       RunlogF("Failed in evolis_print_set_option(FOverlayManagement,BMPVARNISH).\n");
-//       bFault = true;
-//       return 1;
-//   }
-
-//   if (pevolis_print_set_option(m_pPrinter, "FBlackManagement", "TEXTINBLACK"))
-//   {
-//       RunlogF("Failed in evolis_print_set_option(FBlackManagement,TEXTINBLACK).\n");
-//       bFault = true;
-//       return 1;
-//   }
-
-//   char szDarkZone[32] = {0};
-//   if (inPicInfo.nAngle > 0)
-//       sprintf(szDarkZone,"%dx%dx%dx%d",0,0,nCardWidth - nDarkLeft,nCardHeight - nDarkTop);
-//   else
-//       sprintf(szDarkZone,"%dx%dx%dx%d",nDarkLeft,nDarkTop,nDarkRight,nDarkBottom);
-
-//   if (pevolis_print_set_option(m_pPrinter, "IFTextRegion", szDarkZone))
-//   {
-//       RunlogF("Failed in evolis_print_set_option(IFTextRegion,%s).\n",szDarkZone);
-//       bFault = true;
-//       return 1;
-//   }
-
-//   if (pevolis_print_set_option(m_pPrinter, "IFBlackLevelValue", "50"))
-//   {
-//       RunlogF("Failed in evolis_print_set_option(IFBlackLevelValue,50).\n");
-//       bFault = true;
-//       return 1;
-//   }
-
-//   if (pevolis_print_set_option(m_pPrinter, "IFDarkLevelValue ", "30"))
-//   {
-//       RunlogF("Failed in evolis_print_set_option(IFDarkLevelValue,30).\n");
-//       bFault = true;
-//       return 1;
-//   }
-
-////    if (pevolis_print_set_imageb(m_pPrinter, evolis_face_t::EVOLIS_FA_FRONT, pFileBuffer,nBufferSize))
-////    {
-////        RunlogF("evolis_print_set_imageb failed:%s.\n",inPicInfo.picpath.c_str());
-////        return 1;
-////    }
-//    if (pevolis_print_set_imagep(m_pPrinter, evolis_face_t::EVOLIS_FA_FRONT,strTempFile.toUtf8().data()))
-//    {
-//        RunlogF("evolis_print_set_imagep failed:%s.\n",strTempFile.toUtf8().data());
-//        bFault = true;
-//        return 1;
-//    }
-//    auto tSpan = duration_cast<milliseconds>(tStart - high_resolution_clock::now());
-//    RunlogF("Prepare print duration:%d.",tSpan.count());
-//    pevolis_print_exec((evolis_t*)m_pPrinter);
-//    int             printed = 0;
-//    evolis_status_t es;
-//    auto tNow = system_clock::now();
-//    auto tLast = tNow;
-//    while (!printed)
-//    {
-//        if (pevolis_status(m_pPrinter, &es) != 0)
-//        {
-//            RunlogF("Error reading printer status\n");
-//            return 0;
-//        }
-//        printed = !(es.information & EVOLIS_INF_BUSY);
-//        tNow = system_clock::now();
-//        auto tDeration = duration_cast<milliseconds>(tNow - tLast);
-//        if (tDeration.count() > 500)
-//        {
-//            tLast = tNow;
-//            RunlogF("Waiting printer task stop\n");
-//        }
-//		this_thread::sleep_for(chrono::milliseconds(50));
-//    }
-//    return 0;
-//}
 
 Mat matRotateClockWise90(Mat src)
 {
@@ -2395,15 +2135,83 @@ int QEvolisPrinter::SetPrinterOptions(evolis_t* printer,string strDPI,string str
     return 0;
 }
 
+int ReadJpeg(string strFile,string &strBuffer,int &nWidth,int &nHeight)
+{
+    tjhandle tjHandle = nullptr;
+    char *pRGBBuff = nullptr;
+    int nBufferSize = 0;
+    try
+    {
+        bool bResult = false;
+        do
+        {
+            tjHandle =tjInitDecompress();
+            if (!tjHandle)
+                break;
+            ifstream ifs(strFile,ios::binary|ios::in);
+            stringstream ss;
+            ss << ifs.rdbuf();
+
+            int subsample,colorspace;
+            if (tjDecompressHeader3(tjHandle,(unsigned char *)ss.str().c_str(),(unsigned long)ss.str().size(), &nWidth, &nHeight,&subsample,&colorspace))
+            {
+                qDebug() << "Failed in tjDecompressHeader3" << tjGetErrorStr();
+                break;
+            }
+
+//            int ScaleingFators;
+//            tjscalingfactor *scalingFactor=  tjGetScalingFactors(&ScaleingFators);
+//            if (!scalingFactor)
+//            {
+//                qDebug() << "Failed in tjGetScalingFactors" << tjGetErrorStr();
+//                break;
+//            }
+            int nPixelFormat = TJPF_BGR;
+//            tjscalingfactor &factor =*scalingFactor;
+//            int scaledHeight = TJSCALED(nHeight,factor);
+//            int scaledWidth = TJSCALED(nWidth,factor);
+//            int nPitch = scaledWidth * tjPixelSize[TJPF_BGR];
+            nBufferSize = nWidth*nHeight*tjPixelSize[nPixelFormat];
+            pRGBBuff = new char[nBufferSize + 1];
+
+            if (tjDecompress2(tjHandle,(unsigned char *)ss.str().c_str(),(unsigned long)ss.str().size(),(unsigned char *)pRGBBuff,0,0,nHeight,nPixelFormat,0))
+            {
+                qDebug() << "Failed in tjDecompress2" << tjGetErrorStr();
+                break;
+            }
+            bResult = true;
+        }while(0) ;
+        if (tjHandle)
+            tjDestroy(tjHandle);
+        if (bResult)
+            strBuffer.assign(pRGBBuff,nBufferSize);
+        return 0;
+    }
+    catch(std::exception &e)
+    {
+        qDebug() <<e.what();
+        return 0;
+    }
+}
+
 int QEvolisPrinter::MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,string &strImagePath,char *pszRcCode,float fScale,float fScale2)
 {
     Mat canvas(nCardHeight*fScale,nCardWidth*fScale,CV_8UC3,Scalar(255,255,255));
-    Mat HeaderImage = imread(inPicInfo.picpath, IMREAD_ANYCOLOR);
-    if (!HeaderImage.data)
+    string strJpegBuffer;
+    int nPicWidth = 0,nPicHeight = 0;
+    if (ReadJpeg(inPicInfo.picpath,strJpegBuffer,nPicWidth,nPicHeight))
     {
-         RunlogF("Failed in load file :%s.\n",inPicInfo.picpath.c_str());
-         FailedCode(0013);
+        RunlogF("Failed in load file :%s.\n",inPicInfo.picpath.c_str());
+        FailedCode(0013);
     }
+//    Mat HeaderImage = imread(inPicInfo.picpath, IMREAD_ANYCOLOR);
+//    if (!HeaderImage.data)
+//    {
+//         RunlogF("Failed in load file :%s.\n",inPicInfo.picpath.c_str());
+//         FailedCode(0013);
+//    }
+    Mat HeaderImage(nPicHeight,nPicWidth,CV_8UC3);
+    memcpy(HeaderImage.data,strJpegBuffer.c_str(),strJpegBuffer.size());
     Mat HeaderPrint;
     resize(HeaderImage, HeaderPrint, Size(MM2Pixel(inPicInfo.fWidth*fScale,nDPI_W) , MM2Pixel(inPicInfo.fHeight*fScale,nDPI_H)), 0, 0, INTER_NEAREST);
 
@@ -2582,7 +2390,7 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
     int nRibbonCount = strtol(szReply,nullptr,10);
     if (nRibbonCount <= 0)
     {
-        RunlogF("Run out of ribbon and print failed.\n");
+        RunlogF("Run out of ribbon and print failed:%s.\n",szReply);
         FailedCode(0021);
     }
     nIdx++;

@@ -77,62 +77,59 @@ struct ExtraCommand
     QStringList listData;
 };
 ExtraCommand cmdlist[] =
-{
-	{"ReadBankNo",{}},
-		{"WriteCard:1",{"<ROOT></ROOT>","<ROOT><AAB301>330800</AAB301><AAZ507>0081544C9686843308070769BE</AAZ507><AFLAG>03</AFLAG><AAZ501>330800D156000005070769BE00000000</AAZ501><SJS1>9348C5AB13BA188D</SJS1><SJS2>8124535CF5CA03D9</SJS2><SJS3>FDA8A1F1B1B399EC</SJS3><SJS4>90B3B7432F47DB57</SJS4><MSGNO>9013</MSGNO></ROOT>"}},
-		{"WriteCard:2",{"RESULT1","RESULT2"}},
-		{"WriteCard:3",{"<ROOT>"
-						"<SHBZHM>330821196605154950</SHBZHM>"
-						"<XM>罗渭泉</XM>"
-						"<XB>1</XB>"
-						"<MZ>01</MZ>"
-						"<CSRQ>19660515</CSRQ>"
-						"<RESULT>B64F27FD740ADF281251002A43FBAC55</RESULT>"
-						"<CARDINFO>330800|||330800D156000005070769C200000000||0081544C9686843308070769C2|3.00|||000000000000|00037261202007000128|</CARDINFO>"
-					   "</ROOT>"}},
-		{"WriteCard:4",{"<ROOT>"
-						"<KSBM>330800D15600000578878883B09158ED</KSBM>"
-						"<KLB>3</KLB>"
-						"<GFBB>3.00</GFBB>"
-						"<CSHJGBM>91560000023308003301009E</CSHJGBM>"
-						"<FKRQ>20211222</FKRQ>"
-						"<KYXQ>20301231</KYXQ>"
-						"<KH>HC0876929</KH>"
-						"<RESULT>B64F27FD740ADF281251002A43FBAC55</RESULT>"
-						"<CARDINFO>330800|330821196605154950||330800D156000005070769C200000000|罗渭泉|0081544C9686843308070769C2|3.00|||000000000000|00037261202007000128|</CARDINFO>"
-						"</ROOT>"}},
-		{"WriteCard:5",{"<ROOT><RESULT1>F63ADD70BC35F2E1981A32D2449DCD5C</RESULT1><RESULT2>3BE496905BEB46A1C4DBB51E9B5B48C6</RESULT2></ROOT>"}},
-		{"WriteCard:6",{"<ROOT><USERPIN>123456</USERPIN></ROOT>"}},
-		{"WriteCard:7",{"<ROOT>"
-						"<USERPIN>123456</USERPIN>"
-						"<QMZS>MIICczCCAhigAwIBAgIQEDMIABAzvg2wJcW0E2fAizAKBggqgRzPVQGDdTCBmTELMAkGA1UEBhMCQ04xDzANBgNVBAgMBuWMl+S6rDEPMA0GA1UEBwwG5YyX5LqsMTMwMQYDVQQKDCrkurrlipvotYTmupDlkoznpL7kvJrkv53pmpzpg6jkv6Hmga/kuK3lv4MxMzAxBgNVBAMMKuS6uuWKm+i1hOa6kOWSjOekvuS8muS/nemanOmDqOS/oeaBr+S4reW/gzAeFw0yMTEyMjAwNDA0MTJaFw0zMTEyMjAwNDA0MTJaMEYxCzAJBgNVBAYTAkNOMRIwEAYDVQQIDAnmtZnmsZ/nnIExDzANBgNVBAcMBuihouW3njESMBAGA1UEAwwJ5ZGo5pmo5paMMFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAETpX8QvmCogczhjRNBnuDv/+4kq4XxZm+F9wH9ZlaghchJeitMGCNRN/MmLJH+7D1p74ZzT1xxY1va2yVYrU4tqOBkzCBkDAfBgNVHSMEGDAWgBQTNh4KhBOBhLgty8el34802MpFPTAdBgNVHQ4EFgQUYJ5zOw6GDZar1tLxCuvJecDb1iQwCwYDVR0PBAQDAgbAMBQGByqBHJIMAQEECUhDMDg1ODk2NjArBgcqgRySDAECBCBehzGYk0Rdd6Gc+TQXxlWABua9muC1c2wp6dZHYXawhTAKBggqgRzPVQGDdQNJADBGAiEApvXWifp6nJ32om7oSPWLlXYzGDAzxAYDQVXD8FC4ZvMCIQD6XYNBngQt1yDr7NSb9BrI9Mw/AgiD3r9m70P7x4z6Yw==</QMZS>"
-						"<JMZS>MIICcDCCAhagAwIBAgIQIDMIABAzsvOFyRblbI1B3zAKBggqgRzPVQGDdTCBmTELMAkGA1UEBhMCQ04xDzANBgNVBAgMBuWMl+S6rDEPMA0GA1UEBwwG5YyX5LqsMTMwMQYDVQQKDCrkurrlipvotYTmupDlkoznpL7kvJrkv53pmpzpg6jkv6Hmga/kuK3lv4MxMzAxBgNVBAMMKuS6uuWKm+i1hOa6kOWSjOekvuS8muS/nemanOmDqOS/oeaBr+S4reW/gzAeFw0yMTEyMjAwNDA0MTJaFw0zMTEyMjAwNDA0MTJaMEYxCzAJBgNVBAYTAkNOMRIwEAYDVQQIDAnmtZnmsZ/nnIExDzANBgNVBAcMBuihouW3njESMBAGA1UEAwwJ5ZGo5pmo5paMMFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEzMkYdArEqeKFy2jfgpin9rKzCGDggOz7HM7VaRDqrsGQucutm2Vp0Ie8TRtPQC1xAxvCidmvH3TbzOMShWGgVKOBkTCBjjAfBgNVHSMEGDAWgBQTNh4KhBOBhLgty8el34802MpFPTAdBgNVHQ4EFgQUN4pJAOVN5LOmYT8DbJlrpRxhthswCwYDVR0PBAQDAgQwMBMGBiqBHJIMAQQJSEMwODU4OTY2MCoGBiqBHJIMAgQgXocxmJNEXXehnPk0F8ZVgAbmvZrgtXNsKenWR2F2sIUwCgYIKoEcz1UBg3UDSAAwRQIhAMO6ldj7RGptoKd4iP1a9jdoHrJHTi+fWz1FTfwOMZqhAiAjCnHJCwilDWQgwfAQ1wqGYMx7jJKB8929lcgVoL3s0g==</JMZS>"
-						"<JMMY>AQAAAAEEAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACDWqX9nfIYB/t+zWVF8ofm/XYijp85Slk/Tln2x2ImugABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMzJGHQKxKnihcto34KYp/ayswhg4IDs+xzO1WkQ6q7BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACQucutm2Vp0Ie8TRtPQC1xAxvCidmvH3TbzOMShWGgVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd4C3QRf3mKZNOF73BG28AtaFOOdeI6by6biNL5QVo8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFwcCVpMfLKmLRNtQFisCstdEkS6BWX8TuhC2duA+oYW2/D3kjB6xi6XScDmX5WaLMZs8EjHejqaUT04iXK5rn4QAAAAnkVfNLaihb0ehYAzk1h04g==</JMMY>"
-						"<OLDGLYPIN>12345678</OLDGLYPIN>"
-						"<GLYPIN>23158782</GLYPIN>"
-						"<OLDZKMY>D5E3BDADCAA1C9E7BBE1B1A3D5CFBFA8</OLDZKMY>"
-						"<ZKMY>32353733383033303731333535383031</ZKMY>"
-						"</ROOT>"}},
-	{"WriteCitizenCard_3303:01",{"{\"QYBZ\":\"01\"}"},},
-	{"WriteCitizenCard_3304:01",{"{}"}},
-	{"WriteCardEx_WenZhou:01",{"{}"}},
-	// {"RESULT1":"1322C24C05E47A32410C6F1506A9B23C","RESULT2":"51D6ECEAB5076220E135CD36B09BAFAD"}
-	{"WriteCardEx_WenZhou:02",{"{\"RESULT1\":\"1322C24C05E47A32410C6F1506A9B23C\",\"RESULT2\":\"51D6ECEAB5076220E135CD36B09BAFAD\"}"}},
-	{"WriteCardEx_WenZhou:03",{"{}"}},
-	{"WriteCardEx_WenZhou:04",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ADDR\":\"浙江省温州市龙湾区张家\",\"PHONE\":\"18888179633\"}").toLocal8Bit().data()}},
-	{"WriteCardEx_WenZhou:05",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ORGCODE\":\"123456\"}").toLocal8Bit().data()}},
-	{"WriteCardEx_WenZhou:06",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"COUNTRY\":\"CHN\"}").toLocal8Bit().data()}},
-	{"EvolisCommand",{}},
+    {
+        {"ReadBankNo",{}},
+    {"WriteCard:1",{"<ROOT></ROOT>","<ROOT><AAB301>330800</AAB301><AAZ507>0081544C9686843308070769BE</AAZ507><AFLAG>03</AFLAG><AAZ501>330800D156000005070769BE00000000</AAZ501><SJS1>9348C5AB13BA188D</SJS1><SJS2>8124535CF5CA03D9</SJS2><SJS3>FDA8A1F1B1B399EC</SJS3><SJS4>90B3B7432F47DB57</SJS4><MSGNO>9013</MSGNO></ROOT>"}},
+           {"WriteCard:2",{"RESULT1","RESULT2"}},
+           {"WriteCard:3",{"<ROOT>"
+                           "<SHBZHM>330821196605154950</SHBZHM>"
+                           "<XM>罗渭泉</XM>"
+                           "<XB>1</XB>"
+                           "<MZ>01</MZ>"
+                           "<CSRQ>19660515</CSRQ>"
+                           "<RESULT>B64F27FD740ADF281251002A43FBAC55</RESULT>"
+                           "<CARDINFO>330800|||330800D156000005070769C200000000||0081544C9686843308070769C2|3.00|||000000000000|00037261202007000128|</CARDINFO>"
+                          "</ROOT>"}},
+           {"WriteCard:4",{"<ROOT>"
+                           "<KSBM>330800D15600000578878883B09158ED</KSBM>"
+                           "<KLB>3</KLB>"
+                           "<GFBB>3.00</GFBB>"
+                           "<CSHJGBM>91560000023308003301009E</CSHJGBM>"
+                           "<FKRQ>20211222</FKRQ>"
+                           "<KYXQ>20301231</KYXQ>"
+                           "<KH>HC0876929</KH>"
+                           "<RESULT>B64F27FD740ADF281251002A43FBAC55</RESULT>"
+                           "<CARDINFO>330800|330821196605154950||330800D156000005070769C200000000|罗渭泉|0081544C9686843308070769C2|3.00|||000000000000|00037261202007000128|</CARDINFO>"
+                           "</ROOT>"}},
+           {"WriteCard:5",{"<ROOT><RESULT1>F63ADD70BC35F2E1981A32D2449DCD5C</RESULT1><RESULT2>3BE496905BEB46A1C4DBB51E9B5B48C6</RESULT2></ROOT>"}},
+           {"WriteCard:6",{"<ROOT><USERPIN>123456</USERPIN></ROOT>"}},
+           {"WriteCard:7",{"<ROOT>"
+                           "<USERPIN>123456</USERPIN>"
+                           "<QMZS>MIICezCCAiGgAwIBAgIQEDMHABAzpHMPGk6Ch9NNBTAKBggqgRzPVQGDdTCBmTELMAkGA1UEBhMCQ04xDzANBgNVBAgMBuWMl+S6rDEPMA0GA1UEBwwG5YyX5LqsMTMwMQYDVQQKDCrkurrlipvotYTmupDlkoznpL7kvJrkv53pmpzpg6jkv6Hmga/kuK3lv4MxMzAxBgNVBAMMKuS6uuWKm+i1hOa6kOWSjOekvuS8muS/nemanOmDqOS/oeaBr+S4reW/gzAeFw0yMjA2MzAwODU1NDlaFw0zMjA2MzAwODU1NDlaME8xCzAJBgNVBAYTAkNOMRIwEAYDVQQIDAnmtZnmsZ/nnIExGzAZBgNVBAcMEumHkeWNjuW4guS5ieS5jOW4gjEPMA0GA1UEAwwG56em5ZCJMFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE4r4//DNKVEFNup9VMm63KqgdVRIrFGnaFilEv7QyqwScklFptM2pJ+C18dmIXtXBBe1HfYkSFhsyCzNzmC55MqOBkzCBkDAfBgNVHSMEGDAWgBQTNh4KhBOBhLgty8el34802MpFPTAdBgNVHQ4EFgQUDyOga3izh2/sMsKIqdb9cCJolacwCwYDVR0PBAQDAgbAMBQGByqBHJIMAQEECUdHMDEwMzI3MjArBgcqgRySDAECBCDF/H6Zwqt4i2GyXKTvBiBfAZmtjB2laVjQkhJizCLhzTAKBggqgRzPVQGDdQNIADBFAiEA13mHYt4ymJFPVXKteJkBaHIbNRw055AVomdotMn50BcCICpV7n18uif/BiI9JhkYvfyekztUvCDdBKovEJnbiW/Y</QMZS>"
+                           "<JMZS>MIICejCCAh+gAwIBAgIQIDMHABAzlvcAnnzJeg4/QTAKBggqgRzPVQGDdTCBmTELMAkGA1UEBhMCQ04xDzANBgNVBAgMBuWMl+S6rDEPMA0GA1UEBwwG5YyX5LqsMTMwMQYDVQQKDCrkurrlipvotYTmupDlkoznpL7kvJrkv53pmpzpg6jkv6Hmga/kuK3lv4MxMzAxBgNVBAMMKuS6uuWKm+i1hOa6kOWSjOekvuS8muS/nemanOmDqOS/oeaBr+S4reW/gzAeFw0yMjA2MzAwODU1NDlaFw0zMjA2MzAwODU1NDlaME8xCzAJBgNVBAYTAkNOMRIwEAYDVQQIDAnmtZnmsZ/nnIExGzAZBgNVBAcMEumHkeWNjuW4guS5ieS5jOW4gjEPMA0GA1UEAwwG56em5ZCJMFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEUzcFqxXF9UPTbnsasvhu7evVQfQbtF6LrOdV//NJr88Jk1+AjPgWSp5VD9LEzCVqmvyuaKsiSEfIhWsF89lLmKOBkTCBjjAfBgNVHSMEGDAWgBQTNh4KhBOBhLgty8el34802MpFPTAdBgNVHQ4EFgQUv+XKDURxsMJCREooZpneqqMcnUEwCwYDVR0PBAQDAgQwMBMGBiqBHJIMAQQJR0cwMTAzMjcyMCoGBiqBHJIMAgQgxfx+mcKreIthslyk7wYgXwGZrYwdpWlY0JISYswi4c0wCgYIKoEcz1UBg3UDSQAwRgIhAIqilC4BIu9SGCNaj/8AjMMPnr+OY7aQJft7oixE1oLTAiEA3uH0J0A40mjzHZQbFvMEVcPJiGWXpfRIDDpI+ud6QFg=</JMZS>"
+                           "<JMMY>AQAAAAEEAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADn+l311EJ3Z4mbPzwZhtQSkPTLGOSRQgaQ2UcrEl8pxwABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFM3BasVxfVD0257GrL4bu3r1UH0G7Rei6znVf/zSa/PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJk1+AjPgWSp5VD9LEzCVqmvyuaKsiSEfIhWsF89lLmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAtTt5ICky7hH3ZtCE4dEZ169vLyGL7TnaR6VEIb/shIwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE0LA946aK4ru9N8jCITgwICxC/2awJgE904fySRyU+WRUqdC2/WTPF7qi2CTU0V6sgtssgJozgLFdI5UcwqkH4QAAAAYok3id+2Hp0+BtY1eJJhiw==</JMMY>"
+                           "<OLDGLYPIN>12345678</OLDGLYPIN>"
+                           "<GLYPIN>54630575</GLYPIN>"
+                           "<OLDZKMY>D5E3BDADCAA1C9E7BBE1B1A3D5CFBFA8</OLDZKMY>"
+                           "<ZKMY>34383537323230343932363233313039</ZKMY>"
+                           "</ROOT>"}},
+
+        {"EvolisCommand",{}},
+        {"EvolisStatus",{}},
         {"Reset Delay",{"5000"}},
         {"Set DeviceReset",{"True","False"}},
         {"EnableOutput",{"True","False"}},
         {"Enablelog",{"True","False"}},
         {"RibbonStatus",{}},
-
-};
-MainWindow::MainWindow(QWidget* parent)
-	: QMainWindow(parent)
-	, ui(new Ui::MainWindow)
+        {"IFDarkLevelValue",{}},
+        {"IFBlackLevelValue",{}},
+        {"Resolution",{"DPI300300","DPI600300"}},
+        {"Print Datetime",{"True","False"}},
+        {"Print Resolution",{"True","False"}},
+   };
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
 {
     //setOrientation(SCREEN_ORIENTATION_LANDSCAPE);
     ui->setupUi(this);
@@ -214,7 +211,7 @@ void MainWindow::OutputMsg(const char *pFormat, ...)
     va_list args;
     va_start(args, pFormat);
     int nBuff;
-    CHAR szBuffer[256] = {0};
+    CHAR szBuffer[2048] = {0};
     nBuff = vsnprintf(szBuffer, __countof(szBuffer), pFormat, args);
     qDebug()<<szBuffer;
     QTime tNow = QTime::currentTime();
@@ -309,6 +306,7 @@ void MainWindow::Printer_SetOverlayer()
     char szRCode[1024] = {0};
     long lTimeout = 2000;
     char szCommandout[128] = {0};
+
 
     if (pPrinterInstance->Print_ExtraCommand(lTimeout,"Set Overlayer",(void *)"assets:/overlayer.bmp",(LPVOID &)szCommandout,szRCode))
     {
@@ -454,15 +452,14 @@ void MainWindow::Printer_GetStatus()
 
 void MainWindow::Printer_Start()
 {
-
     CheckPriner(pPrinterInstance);
     long lTimeout = 2000;
     char szRCode[1024] = {0};
 
     LPVOID lpCmdOut = nullptr;
     QString strTempFile = QDir::currentPath();
-    strTempFile += "/PrintPriew.bmp";
-    pPrinterInstance->Print_ExtraCommand(lTimeout,"Set SavePreview",(LPVOID)strTempFile.toStdString().c_str(),lpCmdOut,szRCode);
+    //strTempFile += "/PrintPriew.bmp";
+   // pPrinterInstance->Print_ExtraCommand(lTimeout,"Set SavePreview",(LPVOID)strTempFile.toStdString().c_str(),lpCmdOut,szRCode);
 
     if (pPrinterInstance->Print_StartPrint(lTimeout,szRCode))
     {
@@ -661,21 +658,11 @@ void MainWindow::on_pushButton_ExtraCommand_clicked()
     //pPrinterInstance->Print_IcPowerOff(lTimeout, szRCode);
     //Result(x,pPrinterInstance->Print_IcPowerOn(lTimeout,szout,nArtlen,(unsigned char *)szUID,nUidLen,szRCode));
 
-	QString qstrCommand = ui->comboBox_Extracommand->currentText();
-	QByteArray baCommand = qstrCommand.toLatin1();
-	QByteArray baData;
-	QString qstrData;
-	if (qstrCommand == "WriteCardEx_WenZhou:03")
-	{
-		QFile file("./WriteCardEx_WenZhou_03.json");
-		file.open(QIODevice::ReadOnly);
-		baData = file.readAll();
-	}
-	else
-	{
-		qstrData = ui->comboBox_ExtracommandData->currentText();
-		baData = qstrData.toLatin1();
-	}
+    QString qstrCommand = ui->comboBox_Extracommand->currentText();
+    QByteArray baCommand = qstrCommand.toLatin1();
+
+    QString qstrData = ui->comboBox_ExtracommandData->currentText();
+    QByteArray baData = qstrData.toLatin1();
 
     LPVOID szCommandout = nullptr;
     if (pPrinterInstance->Print_ExtraCommand(lTimeout,baCommand.data(),baData.data(),szCommandout,szRCode))
@@ -690,10 +677,13 @@ void MainWindow::on_pushButton_ExtraCommand_clicked()
         }
         else
         {
-            if (strlen((char *)szCommandout) > 0)
-                OutputMsg("Print_ExtraCommand succeed:%s",(char *)szCommandout);
-            else
-                OutputMsg("Print_ExtraCommand succeed!");
+            if (szCommandout)
+            {
+                if (strlen((char *)szCommandout) > 0)
+                    OutputMsg("Print_ExtraCommand succeed:%s",(char *)szCommandout);
+                else
+                    OutputMsg("Print_ExtraCommand succeed!");
+            }
         }
     }
     //Result(x,pPrinterInstance->Print_IcPowerOff(lTimeout, szRCode));
@@ -723,50 +713,50 @@ void MainWindow::on_pushButton_browsegraph_clicked()
         qDebug()<<strFile;
         ui->lineEdit_graphpath->setText(strFile);
 
-        QImage Convas(1024, 650, QImage::Format_RGB888);
-        Convas.fill(Qt::white);
-        QPainter painter(&Convas);
-        painter.setCompositionMode(QPainter::CompositionMode_Source);
+//        QImage Convas(1024, 650, QImage::Format_RGB888);
+//        Convas.fill(Qt::white);
+//        QPainter painter(&Convas);
+//        painter.setCompositionMode(QPainter::CompositionMode_Source);
 
-        QImage ImageLoad;
-        painter.setRenderHint(QPainter::Antialiasing, true);
-        float fAngle = ui->lineEdit_graph_angle->text().toFloat();
+//        QImage ImageLoad;
+//        painter.setRenderHint(QPainter::Antialiasing, true);
+//        float fAngle = ui->lineEdit_graph_angle->text().toFloat();
 
-        /* 坐标转换公式
-         * MM_w=Pixel_x*25.4/dpi
-         * MM_h=Pixel_y*25.4/dpi
-         * Pixel_x=MM_w*dpi/25.4
-         * Pixel_y=MM_h*dpi/25.4
-        */
-        const double nDPI = 300;
-        const double fScale = nDPI/25.4;
-        if (ImageLoad.load(strFile))
-        {
-            double nX = ui->lineEdit_graphX->text().toDouble();
-            double nY = ui->lineEdit_graphY->text().toDouble();
-            double nW = ui->lineEdit_graphW->text().toDouble();
-            double nH = ui->lineEdit_graphH->text().toDouble();
+//        /* 坐标转换公式
+//         * MM_w=Pixel_x*25.4/dpi
+//         * MM_h=Pixel_y*25.4/dpi
+//         * Pixel_x=MM_w*dpi/25.4
+//         * Pixel_y=MM_h*dpi/25.4
+//        */
+//        const double nDPI = 300;
+//        const double fScale = nDPI/25.4;
+//        if (ImageLoad.load(strFile))
+//        {
+//            double nX = ui->lineEdit_graphX->text().toDouble();
+//            double nY = ui->lineEdit_graphY->text().toDouble();
+//            double nW = ui->lineEdit_graphW->text().toDouble();
+//            double nH = ui->lineEdit_graphH->text().toDouble();
 
-            double fPixel_x = nX*fScale;
-            double fPixel_y = nY*fScale;
-            double fW = nW*fScale;
-            double fH = nH*fScale;
+//            double fPixel_x = nX*fScale;
+//            double fPixel_y = nY*fScale;
+//            double fW = nW*fScale;
+//            double fH = nH*fScale;
 
-            painter.save();
-            int nConvasWidth = Convas.width();
-            int nConvasHeight = Convas.height();
-            painter.translate(nConvasWidth/2,nConvasHeight/2);
+//            painter.save();
+//            int nConvasWidth = Convas.width();
+//            int nConvasHeight = Convas.height();
+//            painter.translate(nConvasWidth/2,nConvasHeight/2);
 
-            painter.rotate(fAngle);
-            painter.translate(-nConvasWidth/2,-nConvasHeight/2);
-            painter.drawImage(QRectF(fPixel_x,fPixel_y,fW,fH),ImageLoad);
-            painter.restore();
+//            painter.rotate(fAngle);
+//            painter.translate(-nConvasWidth/2,-nConvasHeight/2);
+//            painter.drawImage(QRectF(fPixel_x,fPixel_y,fW,fH),ImageLoad);
+//            painter.restore();
 
-            QFileInfo fi(strFile);
-            QString strImageSave = fi.absoluteDir().absolutePath() + "/Sample.bmp";
-            //OutputMsg(strImageSave.toStdString().c_str());
-            //Convas.save(strImageSave);
-        }
+//            QFileInfo fi(strFile);
+//            QString strImageSave = fi.absoluteDir().absolutePath() + "/Sample.bmp";
+//            //OutputMsg(strImageSave.toStdString().c_str());
+//            //Convas.save(strImageSave);
+//        }
     }
 }
 
@@ -1158,11 +1148,16 @@ void MainWindow::on_pushButton_PrinterLoadText_clicked()
            vecText.push_back(strLine);
         }
     }
-    long lTimeout = 2000;
-    char szRCode[1024] ={0};
+    else
+    {
+        QMessageBox::information(this,"Information","Please select a Photo to print!",QMessageBox::Ok);
+        return;
+    }
+     long lTimeout = 2000;
+     char szRCode[1024] ={0};
      int nAngle = 180;
      int size = 8;
-       int nFontStyle = 1;
+     int nFontStyle = 1;
        if (ui->checkBox_Bold->isChecked())
            nFontStyle = 2;
        QString strFont =  ui->lineEdit_Font->text();
@@ -1207,7 +1202,6 @@ void MainWindow::on_pushButton_PrinterInsert_2_clicked()
     else
     {
         OutputMsg("Print_ExtraCommand(IndraftCard) Succeed.\n");
-
     }
 }
 
@@ -1216,9 +1210,13 @@ void MainWindow::on_comboBox_Extracommand_currentIndexChanged(const QString &arg
     /*
         {"EvolisCommand",{}},
         {"Reset Delay",{5}},
+        {"IFDarkLevelValue",{}},
+        {"IFBlackLevelValue",{}},
 */
     if (arg1 == "EvolisCommand" ||
-        arg1 == "Reset Delay")
+        arg1 == "Reset Delay" ||
+        arg1 == "IFDarkLevelValue" ||
+        arg1 == "IFBlackLevelValue")
     {
         ui->comboBox_ExtracommandData->setEditable(true);
     }
@@ -1351,4 +1349,74 @@ void MainWindow::on_pushButton_ScrollRibbon_clicked()
             }
         }
     }
+}
+
+void MainWindow::on_pushButton_TestDepense_clicked()
+{
+    CheckPriner(pPrinterInstance);
+    if (!m_pThreadTestDepense)
+    {
+        m_bTestDepenseRunning = true;
+        m_pThreadTestDepense = new std::thread(&MainWindow::ThreadTestDepense,this);
+    }
+    else
+    {
+        m_bTestDepenseRunning = false;
+        m_pThreadTestDepense->join();
+        delete  m_pThreadTestDepense;
+        m_pThreadTestDepense = nullptr;
+    }
+
+}
+
+void MainWindow::ThreadTestDepense()
+{
+    char szRCode[1024] = {0};
+
+    long lTimeout = 2000;
+    Lithograph::LITHOGRAPHBOXUNIT boxesUnit[10];
+    Lithograph::LITHOGRAPHBOXINFO boxesInfo = {10, boxesUnit};
+    Lithograph::LPLITHOGRAPHBOXINFO lpBoxInfo = &boxesInfo;
+    while(m_bTestDepenseRunning)
+    {
+
+        if (pPrinterInstance->Print_GetBoxStatus(lTimeout,lpBoxInfo,szRCode))
+        {
+            OutputMsg("Print_GetBoxStatus Failed!");
+        }
+        else
+        {
+            if (lpBoxInfo->nCount)
+            {
+                const char *szBoxType[] = {"未知","发卡箱","回收箱"};
+                const char *szBoxStatus[] = {"正常", "卡少","无卡", "不可操作", "不存在", "高(快满)","满","未知"};
+                const char *szSense[] = {"否","是"};
+
+                OutputMsg("Print_GetBoxStatus Succeed,Boxes Count:%d",lpBoxInfo->nCount);
+                OutputMsg("Card boxes status:");
+                OutputMsg("\tBoxNo\tType\tStatus\tSensorSupported");
+                QString strLine ;
+                for(int i = 0;i < lpBoxInfo->nCount;i++)
+                {
+                    strLine = QString("\t%1\t%2\t%3\t%4").arg(lpBoxInfo->lpplist[i].byBoxNumber).arg(szBoxType[lpBoxInfo->lpplist[i].byType]).arg(szBoxStatus[lpBoxInfo->lpplist[i].byStatus]).arg(szSense[lpBoxInfo->lpplist[i].bHardwareSensor]);
+                    OutputMsg("%s",strLine.toStdString().c_str());
+                }
+                if (lpBoxInfo->lpplist[0].byStatus == 1)
+                {
+                    m_pThreadTestDepense->detach();
+                    m_pThreadTestDepense = nullptr;
+                    break;
+                }
+            }
+        }
+
+        Printer_InsertCard();
+        Printer_EjectCard();
+    }
+}
+
+void MainWindow::on_pushButton_AutoPrinter_2_clicked()
+{
+
+
 }

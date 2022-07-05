@@ -61,6 +61,29 @@ QMAKE_CXXFLAGS += -Wl,-rpath=./
 QMAKE_CXXFLAGS += -Wno-unused-parameter
 QMAKE_CXXFLAGS += -Wno-unused-variable
 
+INCLUDEPATH += $$PWD/../3rdparty
+DEPENDPATH += $$PWD/../3rdparty
+
+#unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lfreetype
+#unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libfreetype.a
+
+#unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lharfbuzz
+#unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libharfbuzz.a
+
+#unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lopencv_core
+#unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libopencv_core.a
+
+#unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lopencv_imgcodecs
+#unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libopencv_imgcodecs.a
+
+
+#unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lopencv_imgproc
+#unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libopencv_imgproc.a
+
+
+#unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lopencv_photo
+#unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libopencv_photo.a
+
 
 unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lopencv_world
 
@@ -68,3 +91,11 @@ INCLUDEPATH += $$PWD/../3rdparty
 DEPENDPATH += $$PWD/../3rdparty
 
 unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libopencv_world.a
+
+
+unix:!macx: LIBS += -L$$PWD/../3rdparty/libturbojpeg/ -lturbojpeg
+
+INCLUDEPATH += $$PWD/../3rdparty/libturbojpeg
+DEPENDPATH += $$PWD/../3rdparty/libturbojpeg
+
+unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/libturbojpeg/libturbojpeg.a

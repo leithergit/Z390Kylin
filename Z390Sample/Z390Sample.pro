@@ -16,7 +16,10 @@ SOURCES += \
 HEADERS +=  mainwindow.h
 
 FORMS += \
-    mainwindow.ui
+    mainwindow.ui \
+    mainwindow_cn.ui
+
+QMAKE_LFLAGS += -Wl,--rpath=./
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -32,3 +35,4 @@ unix:!macx: LIBS +=  -ldl
 
 INCLUDEPATH += $$PWD/../build-Release
 DEPENDPATH += $$PWD/../build-Release
+TRANSLATIONS += chs.ts
