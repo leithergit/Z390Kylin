@@ -2143,54 +2143,82 @@ int ReadJpeg(string strFile,string &strBuffer,int &nWidth,int &nHeight)
     try
     {
         bool bResult = false;
+        bool  bRepairEnd = false;
+        tjHandle =tjInitDecompress();
+        string strFileBuffer;
+        ifstream ifs(strFile,ios::binary|ios::in);
+        int nFileSize = 0;
         do
         {
-            tjHandle =tjInitDecompress();
             if (!tjHandle)
                 break;
-            ifstream ifs(strFile,ios::binary|ios::in);
-            stringstream ss;
-            ss << ifs.rdbuf();
+
+            if (!nFileSize)
+            {
+                ifs.seekg(0,ios::end);
+                nFileSize = ifs.tellg();
+                if (!nFileSize)
+                    break;
+                strFileBuffer.resize(nFileSize + 1);
+                ifs.seekg(0,ios::beg);
+                ifs.read(&strFileBuffer[0],strFileBuffer.length() - 1);
+            }
+
+            if (bRepairEnd)
+            {
+                if (strFileBuffer[nFileSize - 1] == 0xFF)
+                {
+                    strFileBuffer[nFileSize] = 0xD9;
+                    nFileSize ++;
+                }
+            }
 
             int subsample,colorspace;
-            if (tjDecompressHeader3(tjHandle,(unsigned char *)ss.str().c_str(),(unsigned long)ss.str().size(), &nWidth, &nHeight,&subsample,&colorspace))
+            if (tjDecompressHeader3(tjHandle,(unsigned char *)strFileBuffer.c_str(),(unsigned long)nFileSize, &nWidth, &nHeight,&subsample,&colorspace))
             {
                 qDebug() << "Failed in tjDecompressHeader3" << tjGetErrorStr();
                 break;
             }
 
-//            int ScaleingFators;
-//            tjscalingfactor *scalingFactor=  tjGetScalingFactors(&ScaleingFators);
-//            if (!scalingFactor)
-//            {
-//                qDebug() << "Failed in tjGetScalingFactors" << tjGetErrorStr();
-//                break;
-//            }
             int nPixelFormat = TJPF_BGR;
 //            tjscalingfactor &factor =*scalingFactor;
 //            int scaledHeight = TJSCALED(nHeight,factor);
 //            int scaledWidth = TJSCALED(nWidth,factor);
 //            int nPitch = scaledWidth * tjPixelSize[TJPF_BGR];
-            nBufferSize = nWidth*nHeight*tjPixelSize[nPixelFormat];
-            pRGBBuff = new char[nBufferSize + 1];
-
-            if (tjDecompress2(tjHandle,(unsigned char *)ss.str().c_str(),(unsigned long)ss.str().size(),(unsigned char *)pRGBBuff,0,0,nHeight,nPixelFormat,0))
+            if (!pRGBBuff)
             {
-                qDebug() << "Failed in tjDecompress2" << tjGetErrorStr();
-                break;
+                nBufferSize = nWidth*nHeight*tjPixelSize[nPixelFormat];
+                pRGBBuff = new char[nBufferSize + 1];
+            }
+
+            if (tjDecompress2(tjHandle,(unsigned char *)strFileBuffer.c_str(),(unsigned long)nFileSize,(unsigned char *)pRGBBuff,0,0,nHeight,nPixelFormat,0))
+            {
+                string strErrorEnd = "Premature end of JPEG file";
+                qDebug() << "Failed in tjDecompress2,errCode" << tjGetErrorCode(tjHandle)<<",Error string:"<< tjGetErrorStr();
+                if (strErrorEnd ==  tjGetErrorStr())
+                {
+                    bRepairEnd = true;
+                    continue;
+                }
+                else
+                    break;
             }
             bResult = true;
-        }while(0) ;
+        }while(!bResult) ;
         if (tjHandle)
             tjDestroy(tjHandle);
         if (bResult)
+        {
             strBuffer.assign(pRGBBuff,nBufferSize);
-        return 0;
+            return 0;
+        }
+        else
+            return -1;
     }
     catch(std::exception &e)
     {
         qDebug() <<e.what();
-        return 0;
+        return -1;
     }
 }
 
@@ -2199,6 +2227,18 @@ int QEvolisPrinter::MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVecto
     Mat canvas(nCardHeight*fScale,nCardWidth*fScale,CV_8UC3,Scalar(255,255,255));
     string strJpegBuffer;
     int nPicWidth = 0,nPicHeight = 0;
+    if (!inPicInfo.picpath.size())
+    {
+        RunlogF("Header Image:%s can't be empty!.\n",inPicInfo.picpath.c_str());
+        FailedCode(0013);
+    }
+    QFileInfo fi(inPicInfo.picpath.c_str());
+    if (!fi.isFile())
+    {
+        RunlogF("Can't locate Header image:%s.\n",inPicInfo.picpath.c_str());
+        FailedCode(0013);
+    }
+
     if (ReadJpeg(inPicInfo.picpath,strJpegBuffer,nPicWidth,nPicHeight))
     {
         RunlogF("Failed in load file :%s.\n",inPicInfo.picpath.c_str());
@@ -2250,6 +2290,8 @@ int QEvolisPrinter::MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVecto
             ft2 = cv::freetype::createFreeType2();
 
             ft2->loadFontData(var->pFontName, 0); //加载字库文件
+            if (var->nFontStyle == Style_Bold)
+                RunlogF("Print '%s' with bold Font.\n", var->sText.c_str());
             ft2->putText(FontROI, var->sText.c_str(), cv::Point(0, 0), fontHeight, CV_RGB(0, 0, 0), -1, CV_AA, false,var->nFontStyle == Style_Bold);
         }
         catch (std::exception &e)
