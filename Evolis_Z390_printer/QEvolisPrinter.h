@@ -18,7 +18,7 @@
 #include <string>
 using namespace std;
 using namespace chrono ;
-#define LibVer     "Z390_1.0.2.0b "
+#define LibVer     "Z390_1.0.2.5 "
 struct myFontInfo
 {
     string strPath;
@@ -363,8 +363,9 @@ public:
     //void Exit();
     bool LoadFontFromResources();
     bool loadFontFamilyFromFiles(const QString &strFontFileName,QString &strFontFamily);
-    int  GetRibbonStatus(char *pszRcCode);
-
+    int  GetRibbonStatus( char *pszRcCode);
+    int  GetSN(char* szSN);
+    int  SaveSN(char *szSN);
     // 0 = succeed
     // 1 = communicate failed
     // 2 = uncompatible

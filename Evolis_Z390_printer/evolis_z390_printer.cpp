@@ -31,6 +31,15 @@
 #include <QIODevice>
 #include <QDirIterator>
 #include <QSettings>
+#include <QTextCodec>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include "./json/cJSON.h"
+#include "./json/CJsonObject.hpp"
 
 using namespace std;
 
@@ -69,6 +78,47 @@ int g_nEvolis_logLevel = 0;
 #define     CheckResult(x)  if (!x){\
                                 strcpy(pszRcCode, "0020");\
                                 return 1;}
+
+#define     CheckResult2(x)  if (!x){\
+                                RunlogF("msg = %s.",msg.c_str());\
+                                return 1;};\
+                                RunlogF("msg = %s.",msg.c_str());
+
+#define TOHEXA(a, b) {*b++ = chHexTableA[a >> 4]; *b++ = chHexTableA[a & 0xf];}
+// 功能描述		内存数据转换为16进制ASCII字符串
+// pHex			输入数据流
+// nHexLen		输入数据流长度
+// szAscString	输出16进制ASCII字符串缓冲区
+// nBuffLen		输出缓冲区最大长度
+
+// 返回值		<0时 输入参数不合法
+//				>0 返回转换后的ASCII符串的长度
+int Bin2Hexstring(unsigned char* pHex, int nHexLen, char* szAscString, int nBuffLen)
+{
+    static const  char chHexTableA[] = { '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F' };
+    if (!pHex ||
+        !szAscString ||
+        !nBuffLen)
+        return -1;
+    unsigned char nMult = 2;
+    CHAR chSeperator = '\0';
+//    if (chSeperator == '\0')
+//        nMult = 2;
+    if (nHexLen * nMult > nBuffLen)
+        return -1;
+    CHAR* p = &szAscString[0];
+
+    int n;
+    for (n = 0; n < nHexLen; n++)
+    {
+        TOHEXA(pHex[n], p);
+        if (nMult == 2)
+            continue;
+        *p++ = chSeperator;
+    }
+    return n * nMult;
+}
+
 
 extern "C"
 {
@@ -214,7 +264,7 @@ extern "C"
                     };
                     */
 
-                   pFilelog->open(QIODevice::WriteOnly|QIODevice::Text);
+                   pFilelog->open(QIODevice::Append|QIODevice::Text);
                    pFilelog->write("Try to allocate Evolis_Z390_Printer!");
                 }
             }
@@ -1072,7 +1122,7 @@ extern "C"
         {
             string strError;
             pReader->GetErrorMsg(strError);
-            RunlogF("Failed in ApduIntHex:%s.\n",strError.c_str());
+            RunlogF("Failed in ApduIntHex(%s):%s.\n",cmd.c_str(),strError.c_str());
             return false;
         }
         RunlogF("dc_cpuapduInt_hex return %d bytes:%s.\n",nRecvLen,dataBuff);
@@ -1434,11 +1484,13 @@ extern "C"
 		}
 		m_CardInfo.ATR = CardATR.substr(8, 26);
 
-        CheckResult(RunApdu( "00A404000F7378312E73682EC9E7BBE1B1A3D5CF",msg));
+        CheckResult(RunApdu("00A40000023F00",msg,false));   // for Henbao Card,must select dir 3F00
 
-        CheckResult(RunApdu( "00A4000002EF05",msg));
+        CheckResult(RunApdu("00A404000F7378312E73682EC9E7BBE1B1A3D5CF",msg));
 
-        CheckResult(RunApdu( "00B2010400",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
+        CheckResult(RunApdu("00A4000002EF05",msg));
+
+        CheckResult(RunApdu("00B2010400",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
 
 		m_CardInfo.identifyNum = msg.substr(4, msg.length() - 8);
 		m_CardInfo.regionCode = m_CardInfo.identifyNum.substr(0, 6);
@@ -1540,7 +1592,7 @@ extern "C"
 
 		m_CardInfo.cardNumber = msg.substr(4, msg.length() - 4 - 4);
 		checkName(m_CardInfo.cardNumber, "0", "");
-        pReader->hex_a((unsigned char*)m_CardInfo.cardNumber.c_str(), (unsigned char*)temp, m_CardInfo.cardNumber.length());
+        Bin2Hexstring((unsigned char*)m_CardInfo.cardNumber.c_str(), (int) m_CardInfo.cardNumber.length(),( char*)temp,1024);
 
 		tempCardNumber = temp;
         CheckResult(RunApdu( "00A4000002EF06",msg));//外部认证
@@ -1712,13 +1764,13 @@ extern "C"
 
 		//写EF06数据
 		memset(temp, 0x00, 1024);
-        pReader->hex_a((unsigned char*)tempCardID.c_str(), (unsigned char*)temp, tempCardID.length());
+        Bin2Hexstring((unsigned char*)tempCardID.c_str(), tempCardID.length(),(char*)temp, 1024);
 		//m_newInfos.cardID = temp;
 		tempCardID = temp;
         //RunlogF(tempCardID.c_str());
 
         memset(temp, 0x00, 1024);
-        pReader->hex_a((unsigned char*)strGBKName.c_str(), (unsigned char*)temp, strGBKName.size());
+        Bin2Hexstring((unsigned char*)strGBKName.c_str(),strGBKName.size(), (char*)temp, 1024);
 		//m_newInfos.name = temp;
 		tempName = temp;
         //RunlogF(tempName.c_str());
@@ -1731,7 +1783,7 @@ extern "C"
         //RunlogF(tempName.c_str());
 
 		memset(temp, 0x00, 1024);
-        pReader->hex_a((unsigned char*)tempSex.c_str(), (unsigned char*)temp, tempSex.length());
+        Bin2Hexstring((unsigned char*)tempSex.c_str(), (int)tempSex.length(),(char*)temp, 1024);
 		tempSex = temp;
         //RunlogF(tempSex.c_str());
 
@@ -1909,12 +1961,12 @@ extern "C"
         CheckResult(WriteFile( "01", "01", m_newInfos.identifyNum, msg));
 
 		memset(temp, 0x00, 1024);
-        pReader->hex_a((unsigned char*)KLB.c_str(), (unsigned char*)temp, KLB.length());
+        Bin2Hexstring((unsigned char*)KLB.c_str(), (int) KLB.length(),(char*)temp,1024);
         KLB = temp;
         CheckResult(WriteFile( "02", "02", KLB, msg));
 
 		memset(temp, 0x00, 1024);
-        pReader->hex_a((unsigned char*)tempCardVersion.c_str(), (unsigned char*)temp, tempCardVersion.length());
+        Bin2Hexstring((unsigned char*)tempCardVersion.c_str(), (int)tempCardVersion.length(),(char*)temp, 1024);
 		tempCardVersion = temp;
 		transform(tempCardVersion.begin(), tempCardVersion.end(), tempCardVersion.begin(), ::toupper);
 
@@ -1927,7 +1979,7 @@ extern "C"
         CheckResult(WriteFile( "06", "06", m_newInfos.cardValidDate, msg));
 
 		memset(temp, 0x00, 1024);
-        pReader->hex_a((unsigned char*)tempcardNumber.c_str(), (unsigned char*)temp, tempcardNumber.length());
+        Bin2Hexstring((unsigned char*)tempcardNumber.c_str(), (int)tempcardNumber.length(),(char*)temp, 1024);
         tempcardNumber = temp;
         CheckResult(WriteFile( "07", "07", tempcardNumber, msg));
 
@@ -2214,7 +2266,7 @@ extern "C"
 			return 1;
 		}
 		UPIN = temp;
-        //RunlogF(UPIN.c_str());
+        RunlogF("UserPin = %s.",UPIN.c_str());
 
 		memset(temp, 0x00, sizeof(temp));
 		memset(szErr, 0x00, sizeof(szErr));
@@ -2227,7 +2279,7 @@ extern "C"
 			return 1;
 		}
 		QMZS = temp;
-        //RunlogF(QMZS.c_str());
+        RunlogF("QMZS = %s",QMZS.c_str());
 
 		memset(temp, 0x00, sizeof(temp));
 		memset(szErr, 0x00, sizeof(szErr));
@@ -2240,7 +2292,7 @@ extern "C"
 			return 1;
 		}
 		JMZS = temp;
-        //RunlogF(JMZS.c_str());
+        RunlogF("JMZS = %s",JMZS.c_str());
 
 		memset(temp, 0x00, sizeof(temp));
 		memset(szErr, 0x00, sizeof(szErr));
@@ -2253,7 +2305,7 @@ extern "C"
 			return 1;
 		}
 		JMMY = temp;
-        //RunlogF(JMMY.c_str());
+        RunlogF("JMMY = %s",JMMY.c_str());
 
 		memset(temp, 0x00, sizeof(temp));
 		memset(szErr, 0x00, sizeof(szErr));
@@ -2266,7 +2318,7 @@ extern "C"
 			return 1;
 		}
 		OLDGLYPIN = temp;
-        //RunlogF(OLDGLYPIN.c_str());
+        RunlogF("OLDGLYPIN = %s",OLDGLYPIN.c_str());
 
 		memset(temp, 0x00, sizeof(temp));
 		memset(szErr, 0x00, sizeof(szErr));
@@ -2279,7 +2331,7 @@ extern "C"
 			return 1;
 		}
 		GLYPIN = temp;
-        //RunlogF(GLYPIN.c_str());
+        RunlogF("GLYPIN = %s",GLYPIN.c_str());
 		memset(temp, 0x00, sizeof(temp));
 		memset(szErr, 0x00, sizeof(szErr));
         ret = fXMLExtract((char*)lpCmdIn, (char*)"OLDZKMY", temp, szErr);
@@ -2291,7 +2343,7 @@ extern "C"
 			return 1;
 		}
 		OLDZKMY = temp;
-        //RunlogF(OLDZKMY.c_str());
+        RunlogF("OLDZKMY = %s",OLDZKMY.c_str());
 
 		memset(temp, 0x00, sizeof(temp));
 		memset(szErr, 0x00, sizeof(szErr));
@@ -2304,7 +2356,7 @@ extern "C"
 			return 1;
 		}
 		ZKMY = temp;
-        //RunlogF(ZKMY.c_str());
+        RunlogF("ZKMY = %s",ZKMY.c_str());
 
 		//传入数据是BASE64,先转出来然后再转成16进制
 		char tempBase64[102400] = { 0 };
@@ -2312,7 +2364,7 @@ extern "C"
 		memset(tempBase64, 0x00, 102400);
 
 		replace_all(QMZS, "\\", "");
-        //RunlogF(QMZS.c_str());
+        RunlogF("QMZS = %s",QMZS.c_str());
 		Base64Len = BASE64_Decode(QMZS.c_str(), QMZS.length(), (unsigned char*)tempBase64);
 		if (Base64Len <= 0)
 		{
@@ -2320,32 +2372,37 @@ extern "C"
 			RunlogF("BASE64_Decode 转换错误");
 			return 1;
 		}
-		char tempLog[1024] = { 0 };
-		sprintf(tempLog, "%d", Base64Len);
+        RunlogF("Base64Len = %d",Base64Len);
+        //RunlogF("tempBase64 = %s",tempBase64);
 
 		memset(temp, 0x00, 102400);
-        pReader->hex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        //int nConvert = pReader->hex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        int nConvert = Bin2Hexstring((unsigned char*)tempBase64,Base64Len,(char *)temp,102400);
+        RunlogF("nConvert = %d",nConvert);
 		QMZS = temp;
-        //RunlogF(QMZS.c_str());
+        RunlogF("QMZS = %s",QMZS.c_str());
 
 		memset(tempBase64, 0x00, 102400);
 		replace_all(JMZS, "\\", "");
-        //RunlogF(JMZS.c_str());
+        RunlogF("JMZS = %s",JMZS.c_str());
 		Base64Len = BASE64_Decode((char*)JMZS.c_str(), JMZS.length(), (unsigned char*)tempBase64);
+        RunlogF("Base64Len = %d",Base64Len);
 		if (Base64Len <= 0)
 		{
 			strcpy(pszRcCode, "0001");
 			RunlogF("BASE64_Decode 转换错误");
 			return 1;
 		}
+        //RunlogF("tempBase64 = %s",tempBase64);
 		memset(temp, 0x00, 102400);
-        pReader->hex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        //pReader->hex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        nConvert = Bin2Hexstring((unsigned char*)tempBase64,Base64Len,(char *)temp,102400);
 		JMZS = temp;
-        //RunlogF(JMZS.c_str());
+        RunlogF("JMZS = %s",JMZS.c_str());
 
 		memset(tempBase64, 0x00, 102400);
 		replace_all(JMMY, "\\", "");
-        RunlogF(JMMY.c_str());
+        RunlogF("JMMY = %s",JMMY.c_str());
 		Base64Len = BASE64_Decode((char*)JMMY.c_str(), JMMY.length(), (unsigned char*)tempBase64);
 		if (Base64Len <= 0)
 		{
@@ -2354,16 +2411,16 @@ extern "C"
 			return 1;
 		}
 		memset(temp, 0x00, 102400);
-        pReader->hex_a((unsigned char*)tempBase64, (unsigned char*)temp, Base64Len);
+        Bin2Hexstring((unsigned char*)tempBase64, Base64Len, (char*)temp,102400);
 		JMMY = temp;
-        //RunlogF(JMMY.c_str());
+        RunlogF("JMMY = %s",JMMY.c_str());
 
 		ENCRYPT = JMMY.substr(480, 64) + JMMY.substr(608, 64) + JMMY.substr(672, 64) + JMMY.substr(744, 32);
 		PRKEY = JMMY.substr(88, 64);
 		PUKEY = JMMY.substr(224, 64) + JMMY.substr(352, 64);
-        //RunlogF(ENCRYPT.c_str());
-        //RunlogF(PRKEY.c_str());
-        //RunlogF(PUKEY.c_str());
+        RunlogF("ENCRYPT = %s",ENCRYPT.c_str());
+        RunlogF("PRKEY = %s",PRKEY.c_str());
+        RunlogF("PUKEY = %s",PUKEY.c_str());
 
 		//return 1;
 #if 1
@@ -2382,9 +2439,9 @@ extern "C"
 		if (msg.length() < 32 && HASH.length() < 32)
 		{
 			strcpy(pszRcCode, "0002");
-            //RunlogF("数据长度不符:");
-            //RunlogF(msg.c_str());
-            //RunlogF(HASH.c_str());
+            RunlogF("数据长度不符:");
+            RunlogF(msg.c_str());
+            RunlogF(HASH.c_str());
 			return 1;
 		}
 		RAM = msg.substr(0, 32);
@@ -2417,9 +2474,9 @@ extern "C"
 		if (msg.length() < 32 && HASH.length() < 32)
 		{
 			strcpy(pszRcCode, "0002");
-            //RunlogF("数据长度不符:");
-           // RunlogF(msg.c_str());
-            //RunlogF(HASH.c_str());
+            RunlogF("数据长度不符:");
+            RunlogF(msg.c_str());
+            RunlogF(HASH.c_str());
 			return 1;
 		}
 
@@ -2581,7 +2638,7 @@ extern "C"
     int Evolis_Z390_Printer::Print_ExtraCommand(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode)
     {
 		RunlogF(pCommand);
-
+        char *pDest = nullptr;
         if (0 == strcmp(pCommand,"EnableOutput"))
         {
             if (!pEvolisPriner)
@@ -2768,7 +2825,6 @@ extern "C"
         }
         else if (0 == strcmp(pCommand,"Resolution"))
         {
-
             if (!pEvolisPriner)
             {
                 strcpy(pszRcCode, "0001");
@@ -2921,38 +2977,115 @@ extern "C"
 				strcpy(pszRcCode, "0001");
 				return 1;
 			}
-			
-			switch (pCommand[nLen])
-			{
-            case '1':
-                return WriteCard1(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
-				break;
-            case '2':
-                return WriteCard2(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
-				break;
-            case '3':
-                return WriteCard3(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
-				break;
-            case '4':
-                return WriteCard4(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
-				break;
-            case '5':
-                return WriteCard5(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
-				break;
-            case '6':
-                return WriteCard6(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
-				break;
-            case '7':
-                return WriteCard7(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
-				break;
-			default:
-			{
-				strcpy(pszRcCode, "0002");
-				return 1;
-			}
-				break;
-			}
+
+             if ((pDest = strstr(pCommand,"WriteCard")))
+             {
+                 int nOffset = pDest - pCommand + strlen("WriteCard") + 1;
+                 switch (pCommand[nOffset])
+                 {
+                 case '1':
+                     return WriteCard1(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
+                     break;
+                 case '2':
+                     return WriteCard2(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
+                     break;
+                 case '3':
+                     return WriteCard3(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
+                     break;
+                 case '4':
+                     return WriteCard4(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
+                     break;
+                 case '5':
+                     return WriteCard5(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
+                     break;
+                 case '6':
+                     return WriteCard6(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
+                     break;
+                 case '7':
+                     return WriteCard7(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
+                     break;
+                 default:
+                 {
+                     //温度市民卡写入扩展
+//                     if ((pDest = strstr(pCommand,"WriteCardEx_WenZhou")))
+//                     {
+//                         return WZ_CitizenCardExAPDU(pCommand, (char*)lpCmdIn,lpCmdOut, pszRcCode);
+//                     }
+//                     else
+                     {
+                         strcpy(pszRcCode, "0002");
+                         return 1;
+                     }
+                 }
+                     break;
+                 }
+             }
 		}
+        else if ((pDest = strstr(pCommand,"WriteCitizenCard")))
+        {
+            int nResult = -1;
+            if (!lpCmdIn)
+            {
+                RunlogF("lpCmdIn is invalid.");
+                strcpy(pszRcCode,"0001");
+                return 1;
+            }
+            do
+            {
+                //温州市民卡
+                if ((pDest = strstr(pCommand,"WriteCitizenCard_3303")))
+                {
+                    nResult = WZ_CitizenCardAPDU(pCommand, (char *)lpCmdIn, pszRcCode);
+                    break;
+                }
+                //嘉兴市民卡
+                else if ((pDest = strstr(pCommand,"WriteCitizenCard_3304")))
+                {
+                    nResult = JX_CitizenCardAPDU(pCommand, (char *)lpCmdIn, pszRcCode);
+                    break;
+                }
+                //舟山市民卡
+                else if ((pDest = strstr(pCommand,"WriteCitizenCard_3309")))
+                {
+                    nResult = ZS_CitizenCardAPDU(pCommand, (char *)lpCmdIn, pszRcCode);
+                    break;
+                }
+                //金华市民卡
+                else if ((pDest = strstr(pCommand,"WriteCitizenCard_3307")))
+                {
+                    nResult = JH_CitizenCardAPDU(pCommand, (char *)lpCmdIn, pszRcCode);
+                    break;
+                }
+                //绍兴市民卡
+                else if ((pDest = strstr(pCommand,"WriteCitizenCard_3306")))
+                {
+                    nResult = SX_CitizenCardAPDU(pCommand, (char *)lpCmdIn, pszRcCode);
+                    break;
+                }
+                //义乌市民卡
+                else if ((pDest = strstr(pCommand,"WriteCitizenCard_330782")))
+                {
+                    nResult = YW_CitizenCardAPDU(pCommand, (char *)lpCmdIn, pszRcCode);
+                    break;
+                }
+                else
+                {
+                    RunlogF("Uknow command:%s",pCommand);
+                    strcpy(pszRcCode, "0001");
+                    return 1;
+                }
+            }while(0);
+
+            if (nResult == 0)
+            {
+                lpCmdOut = cpOutMsg;
+                RunlogF((char *)lpCmdOut);
+                strcpy(pszRcCode, "0000");
+                return 0;
+            }
+            else
+                return nResult;
+        }
         else if (0 == strcmp(pCommand,"EvolisStatus"))
         {
             evolis_status_t es;
@@ -2971,6 +3104,20 @@ extern "C"
         return 0;
     }
 
+    bool Evolis_Z390_Printer::ReadFile(std::string fileID,string &msg)
+    {
+         std::string cmd = "00B2" + fileID + "0400";
+         int rLen = 0;
+         char dataBuff[1024] = { 0 };
+         RunlogF("cmd = %s",cmd.c_str());
+
+         if(!RunApdu(cmd.c_str(),msg))
+            return false;
+         else  if ("9000" != msg.substr(msg.length() - 4, 4))
+            return false;
+        return true;
+    }
+
     bool Evolis_Z390_Printer::WriteFile(string fileID, string tag, string val,string &msg)
 	{
         Funclog();
@@ -2980,7 +3127,7 @@ extern "C"
 		memset(valHex, 0x00, 32);
 		sprintf(valHex, "%02X", tlv.length() / 2);
         string cmd = "00DC" + fileID + "04" + valHex + tlv;
-        if(!RunApdu( cmd.c_str(),msg))
+        if(!RunApdu(cmd.c_str(),msg))
            return false;
         else  if ("9000" != msg.substr(msg.length() - 4, 4))
            return false;
@@ -3001,6 +3148,40 @@ extern "C"
             return false;
         return true;
 	}
+
+    bool Evolis_Z390_Printer::SelectSSSE(string &msg)
+    {
+        if (!pReader)
+            return false;
+        CheckResult2(RunApdu("00A404000F7378312E73682EC9E7BBE1B1A3D5CF",msg));
+        return true;
+    }
+
+    bool Evolis_Z390_Printer::SelectDir(string strDirID, string &msg)
+    {
+        if (!pReader)
+            return false;
+        string strCMD = "00A4000002" + strDirID;
+        CheckResult2(RunApdu(strCMD,msg));
+        return true;
+    }
+
+    bool Evolis_Z390_Printer::ExternalAuth(string strAddr, string strKey,string &msg)
+    {
+        if (!pReader)
+            return false;
+        string strCmd = "008200" + strAddr + strKey;
+        CheckResult2(RunApdu(strCmd,msg));
+        return true;
+    }
+
+    bool Evolis_Z390_Printer::GetRandom(string &msg)
+    {
+        if (!pReader)
+            return false;
+        CheckResult2(RunApdu("0084000008",msg));
+        return true;
+    }
 
     void Evolis_Z390_Printer::hexstrxor(char* HexStr1, char* HexStr2, char* HexStr)
 	{
@@ -3366,5 +3547,1900 @@ extern "C"
 		//Writelog_C("outbuffer:" + outbuffer, __FUNCTION__, __LINE__);
         return outbuffer;
     }
+    int Evolis_Z390_Printer::WZ_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode)
+    {
+        Funclog();
+        //温州市民卡命令
+        RunlogF("CmdParam = %s",CmdParam.c_str());
+        std::string  msg;
+        std::string  retJSON = "";
+        int index = Cmd.find(':');
+        std::string temp = Cmd.substr(0, index);
+        Cmd = Cmd.substr(index + 1);
+
+        const char* pError;
+        cJSON *json = cJSON_Parse((char *)CmdParam.c_str(),&pError);
+        if (!json)
+        {
+            RunlogF("无法解析效的命令参数:%s",CmdParam.c_str());
+            strcpy(pszRcCode,"0001");
+            return 1;
+        }
+
+        if (0 == strcmp(temp.c_str(), "WriteCitizenCard_3303"))
+        {
+            //char outContent[1024] = { 0 };
+            char szErr[1024] = { 0 };
+            char temp[1024] = { 0 };
+            char *out;
+
+            switch (atoi(Cmd.c_str()))
+            {
+            case 1:
+            {
+                Funclog();
+                std::string QYBZ;//启用标志
+                std::string SJS;//随机数
+                std::string FSYZ;//分散因子
+                std::string FJKH;//非接卡号
+                std::string CMD;//写卡数据
+
+                cJSON *jsonQYBZ;
+                jsonQYBZ = cJSON_GetObjectItem(json, "QYBZ");
+                QYBZ = jsonQYBZ->valuestring;
+                if (QYBZ.empty())
+                {
+                    RunlogF("解析QYBZ失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu("00A4040008A000000632010105",msg));	//打开文件夹
+
+                CheckResult(RunApdu("00B0950A0A",msg));	//获取对应数据
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+                FSYZ = msg.substr(4);
+
+
+                CheckResult(RunApdu("0084000004",msg));
+
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+
+                transform(QYBZ.begin(), QYBZ.end(), QYBZ.begin(), ::toupper);
+                CMD = "04D6950905" + QYBZ;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "FACTOR", cJSON_CreateString(FSYZ.c_str()));
+                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(FJKH.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+            case 2:
+            {
+                Funclog();
+                std::string INSTRUCTION = "";//指令集(需写入)
+                std::string QDRQ = "";//启动日期
+                std::string YXRQ = "";//有效日期
+                std::string SJS = "";//随机数
+                std::string CMD = "";//写卡数据
+
+                cJSON *jsonInstruction, *jsonQDRQ, *jsonYXRQ;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+
+                //写入指令集
+                CheckResult(RunApdu(INSTRUCTION,msg));
+
+                jsonQDRQ = cJSON_GetObjectItem(json, "QDRQ");
+                QDRQ = jsonQDRQ->valuestring;
+                if (QDRQ.empty())
+                {
+                    QDRQ = szErr;
+                    RunlogF("解析QDRQ失败");
+                    return 1;
+                }
+
+                jsonYXRQ = cJSON_GetObjectItem(json, "YXRQ");
+                YXRQ = jsonYXRQ->valuestring;
+                if (YXRQ.empty())
+                {
+                    YXRQ = szErr;
+                    RunlogF("解析YXRQ失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu("0084000004",msg));
+
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+                CMD = "04D695140C" + QDRQ + YXRQ;
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+
+            }
+            break;
+            case 3:
+            {
+                Funclog();
+                std::string INSTRUCTION = "";   //指令集(需写入)
+                std::string MAINTYPE = "";      //主类型
+                std::string SUBTYPE = "";       //子类型
+                std::string SJS = "";           //随机数
+                std::string CMD = "";           //写卡数据
+
+                cJSON *jsonInstruction, *jsonMainType, *jsonSubType;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+                //写入指令集
+                CheckResult(RunApdu(INSTRUCTION,msg));
+
+                jsonMainType = cJSON_GetObjectItem(json, "MAINTYPE");
+                MAINTYPE = jsonMainType->valuestring;
+                if (MAINTYPE.empty())
+                {
+                    MAINTYPE = szErr;
+                    RunlogF("解析MAINTYPE失败");
+                    return 1;
+                }
+
+                jsonSubType = cJSON_GetObjectItem(json, "SUBTYPE");
+                SUBTYPE = jsonSubType->valuestring;
+                if (SUBTYPE.empty())
+                {
+                    SUBTYPE = szErr;
+                    RunlogF("解析SUBTYPE失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu("0084000004",msg));
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+                CMD = "04D6851F06" + MAINTYPE + SUBTYPE;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+            case 4:
+            {
+                Funclog();
+                std::string INSTRUCTION = "";//指令集(需写入)
+                std::string NAME = "";//姓名
+                std::string CERTTYPE = "";//证件类型
+                std::string CERTNUMBER = "";//证件号
+                std::string SJS = "";//随机数
+                std::string CMD = "";//写卡数据
+
+                cJSON *jsonInstruction, *jsonName, *jsonCertType, *jsonCertNumber;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+
+                //写入指令集
+                CheckResult(RunApdu(INSTRUCTION,msg));
+
+                jsonName = cJSON_GetObjectItem(json, "NAME");
+                NAME = jsonName->valuestring;
+                if (NAME.empty())
+                {
+                    NAME = szErr;
+                    RunlogF("解析NAME失败");
+                    return 1;
+                }
+                jsonCertType = cJSON_GetObjectItem(json, "CERTTYPE");
+                CERTTYPE = jsonCertType->valuestring;
+                if (CERTTYPE.empty())
+                {
+                    CERTTYPE = szErr;
+                    RunlogF("解析CERTTYPE失败");
+                    return 1;
+                }
+
+                jsonCertNumber = cJSON_GetObjectItem(json, "CERTNUMBER");
+                CERTNUMBER = jsonCertNumber->valuestring;
+                if (CERTNUMBER.empty())
+                {
+                    CERTNUMBER = szErr;
+                    RunlogF("解析CERTNUMBER失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu("0084000004",msg));
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+                string strGBKName = Utf8_GBK(NAME.c_str());
+                RunlogF("UTF-8 Name = %s --->GBK:%s.",NAME.c_str(),strGBKName.c_str());
+                NAME = strGBKName;
+
+                //20字节ASCII姓名+32字节ASCII证件号码+1字节BCD证件类型
+                //hex_a((unsigned char*)NAME.c_str(), (unsigned char*)temp, NAME.length());
+                Bin2Hexstring((unsigned char*)NAME.c_str(),NAME.size(),temp,1024);
+
+                NAME = temp;
+                transform(NAME.begin(), NAME.end(), NAME.begin(), ::toupper);
+                int num = 0;
+                num = 40 - NAME.length();//补齐数
+                NAME = NAME + std::string(num, '0');
+
+                memset(temp, 0, 1024);
+                Bin2Hexstring((unsigned char*)CERTNUMBER.c_str(),CERTNUMBER.size(),temp,1024);
+
+                CERTNUMBER = temp;
+                transform(CERTNUMBER.begin(), CERTNUMBER.end(), CERTNUMBER.begin(), ::toupper);
+                num = 64 - CERTNUMBER.length();//补齐数
+                CERTNUMBER = CERTNUMBER + std::string(num, '0');
+
+                CMD = "04D6960239" + NAME + CERTNUMBER + CERTTYPE;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+            case 5:
+            {
+                Funclog();
+                std::string INSTRUCTION = "";//指令集(需写入)
+
+                cJSON *jsonInstruction;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+                //写入指令集
+                CheckResult(RunApdu(INSTRUCTION,msg));
+                String2Char(retJSON);
+            }
+            break;
+            case 6:
+            {
+                Funclog();
+                std::string RFATR = "";//非接芯片ATR
+                std::string FJKH = "";//非接卡号
+
+                CheckResult(RunApdu("00B0950A0A",msg));	//获取对应数据
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+
+                //if (ReadType == DC_CARD)
+                {
+                    char Atr[128] = { 0 };
+                    if (!ResetCard(Atr))
+                    {
+                        RunlogF("Failed in reset card,can't get CardATR.");
+                        return 1;
+                    }
+                    RFATR = Atr;
+                    if (RFATR.empty())
+                    {
+                        RunlogF("获取ATR失败");
+                        return 1;
+                    }
+                }
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "RFATR", cJSON_CreateString(RFATR.c_str()));
+                cJSON_AddItemToObject(root_json, "FJKH", cJSON_CreateString(FJKH.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+
+            default:
+            {
+                RunlogF("未知的命令: %s", Cmd.c_str());
+                strcpy(pszRcCode, "0003");
+                return 1;
+            }
+            break;
+            }
+            cJSON_Delete(json);
+        }
+        else
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    int Evolis_Z390_Printer::JX_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode)
+    {
+        //嘉兴市民卡
+        RunlogF("CmdParam = %s",CmdParam.c_str());
+        std::string  msg;
+        std::string  retJSON = "";
+        int index = Cmd.find(':');
+        std::string temp = Cmd.substr(0, index);
+        Cmd = Cmd.substr(index + 1);
+
+        const char* pError;
+        cJSON *json = cJSON_Parse((char *)CmdParam.c_str(),&pError);
+        if (!json)
+        {
+            RunlogF("无法解析效的命令参数:%s",CmdParam.c_str());
+            strcpy(pszRcCode,"0001");
+            return 1;
+        }
+
+        if (0 == strcmp(temp.c_str(), "WriteCitizenCard_3304"))
+        {
+            char *out;
+            switch (atoi(Cmd.c_str()))
+            {
+            case 1:
+            {
+                std::string RFATR = "";//非接芯片ATR
+                std::string FJKH = "";//非接卡号
+
+                CheckResult(RunApdu("00A4040008A000000632010105",msg));	//打开文件夹
+                if (msg.substr(msg.length() - 4, 4) != "9000")
+                {
+                    RunlogF("打开文件夹失败");
+                }
+
+                CheckResult(RunApdu( "00B0950A0A",msg));	//获取对应数据
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+
+                char Atr[128] = { 0 };
+                if (!ResetCard(Atr))
+                {
+                    RunlogF("Failed in reset card,can't get CardATR.");
+                    return 1;
+                }
+                RFATR = Atr;
+                if (RFATR.empty())
+                {
+                    RunlogF("获取ATR失败");
+                    return 1;
+                }
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "RFATR", cJSON_CreateString(RFATR.c_str()));
+                cJSON_AddItemToObject(root_json, "FJKH", cJSON_CreateString(FJKH.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+
+            default:
+            {
+                RunlogF("未知的命令: %s", Cmd.c_str());
+                strcpy(pszRcCode, "0003");
+                return 1;
+            }
+            break;
+            }
+            cJSON_Delete(json);
+        }
+        else
+        {
+            return 1;
+        }
+        return 0;
+    }
+
+    int Evolis_Z390_Printer::SX_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char * pszRcCode)
+    {
+        RunlogF("CmdParam = %s",CmdParam.c_str());
+        std::string  msg;
+        std::string  retJSON = "";
+        int index = Cmd.find(':');
+        std::string temp = Cmd.substr(0, index);
+        Cmd = Cmd.substr(index + 1);
+
+        const char* pError;
+        cJSON *json = cJSON_Parse((char *)CmdParam.c_str(),&pError);
+        if (!json)
+        {
+            RunlogF("无法解析效的命令参数:%s",CmdParam.c_str());
+            strcpy(pszRcCode,"0001");
+            return 1;
+        }
+
+        if (0 == strcmp(temp.c_str(), "WriteCitizenCard_3306"))
+        {
+            char szErr[1024] = { 0 };
+            char temp[1024] = { 0 };
+            char *out;
+
+            switch (atoi(Cmd.c_str()))
+            {
+            case 1:
+            {
+                std::string SJS;//随机数
+                std::string FSYZ;//分散因子
+                std::string FJKH;//非接卡号
+                std::string CMD;//写卡数据
+                std::string MAINTYPE;//主类型
+                std::string SUBTYPE;//子类型
+
+                cJSON *jsonMAINTYPE;
+                jsonMAINTYPE = cJSON_GetObjectItem(json, "MAINTYPE");
+                MAINTYPE = jsonMAINTYPE->valuestring;
+                if (MAINTYPE.empty())
+                {
+                    MAINTYPE = szErr;
+                    RunlogF("解析MAINTYPE失败");
+                    return 1;
+                }
+
+                cJSON *jsonSUBTYPE;
+                jsonSUBTYPE = cJSON_GetObjectItem(json, "SUBTYPE");
+                SUBTYPE = jsonSUBTYPE->valuestring;
+                if (SUBTYPE.empty())
+                {
+                    SUBTYPE = szErr;
+                    RunlogF("解析SUBTYPE失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu( "00A4040008A000000632010105",msg));	//打开文件夹
+
+                CheckResult(RunApdu( "00B0950A0A",msg));	//获取对应数据
+
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+                FSYZ = msg.substr(4);
+
+                CheckResult(RunApdu( "0084000004",msg));
+
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+                CMD = "04D6950905" + MAINTYPE + SUBTYPE;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "FACTOR", cJSON_CreateString(FSYZ.c_str()));
+                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(FJKH.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+            case 2:
+            {
+                std::string INSTRUCTION = "";//指令集(需写入)
+                std::string NAME = "";//姓名
+                std::string CERTTYPE = "";//证件类型
+                std::string CERTNUMBER = "";//证件号
+                std::string SJS = "";//随机数
+                std::string CMD = "";//写卡数据
+
+                cJSON *jsonInstruction, *jsonName, *jsonCertType, *jsonCertNumber;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION");
+                    return 1;
+                }
+
+                //写入指令集
+                CheckResult(RunApdu( INSTRUCTION,msg));
+
+                RunlogF("写入指令集失败");
+                return 1;
+
+
+                jsonName = cJSON_GetObjectItem(json, "NAME");
+                NAME = jsonName->valuestring;
+                if (NAME.empty())
+                {
+                    NAME = szErr;
+                    RunlogF("解析NAME失败");
+                    return 1;
+                }
+
+                jsonCertType = cJSON_GetObjectItem(json, "CERTTYPE");
+                CERTTYPE = jsonCertType->valuestring;
+                if (CERTTYPE.empty())
+                {
+                    CERTTYPE = szErr;
+                    RunlogF("解析CERTTYPE失败");
+                    return 1;
+                }
+
+                jsonCertNumber = cJSON_GetObjectItem(json, "CERTNUMBER");
+                CERTNUMBER = jsonCertNumber->valuestring;
+                if (CERTNUMBER.empty())
+                {
+                    CERTNUMBER = szErr;
+                    RunlogF("解析CERTNUMBER失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu( "0084000004",msg));
+
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+                //20字节ASCII姓名+32字节ASCII证件号码+1字节BCD证件类型
+                pReader->hex_a((unsigned char*)NAME.c_str(), (unsigned char*)temp, NAME.length());
+                NAME = temp;
+                transform(NAME.begin(), NAME.end(), NAME.begin(), ::toupper);
+                int num = 0;
+                num = 40 - NAME.length();//补齐数
+                NAME = NAME + std::string(num, '0');
+
+                memset(temp, 0, 1024);
+                pReader->hex_a((unsigned char*)CERTNUMBER.c_str(), (unsigned char*)temp, CERTNUMBER.length());
+                CERTNUMBER = temp;
+                transform(CERTNUMBER.begin(), CERTNUMBER.end(), CERTNUMBER.begin(), ::toupper);
+                num = 64 - CERTNUMBER.length();//补齐数
+                CERTNUMBER = CERTNUMBER + std::string(num, '0');
+
+                CMD = "04D6960239" + NAME + CERTNUMBER + CERTTYPE;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+
+                String2Char(retJSON);
+            }
+            break;
+            case 3:
+            {
+                std::string SJS = "";//随机数
+                std::string CMD = "";//写卡数据
+                std::string YXRQ = "";//有效日期
+                cJSON *jsonYXRQ;
+                jsonYXRQ = cJSON_GetObjectItem(json, "YXRQ");
+                YXRQ = jsonYXRQ->valuestring;
+                if (YXRQ.empty())
+                {
+                    YXRQ = szErr;
+                    RunlogF("解析YXRQ失败");
+                    return 1;
+                }
+
+                std::string INSTRUCTION = "";//指令集(需写入)
+                cJSON *jsonInstruction;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu( "0084000004",msg));
+
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+                CMD = "04D6951808" + YXRQ;
+
+                //写入指令集
+                CheckResult(RunApdu( INSTRUCTION,msg));
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+
+                String2Char(retJSON);
+            }
+            break;
+            case 4:
+            {
+                std::string INSTRUCTION = "";//指令集(需写入)
+                cJSON *jsonInstruction;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+
+                //写入指令集
+                CheckResult(RunApdu( INSTRUCTION,msg));
+            }
+            break;
+            case 5:
+            {
+                std::string RFATR = "";//非接芯片ATR
+                std::string FJKH = "";//非接卡号
+
+                CheckResult(RunApdu( "00B0950A0A",msg));	//获取对应数据
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+
+                char Atr[128] = { 0 };
+                if(ResetCard(Atr))
+                {
+                     RunlogF("Reset Card failed");
+                     return 1;
+                }
+                RFATR = Atr;
+                if (RFATR.empty())
+                {
+                    RunlogF("获取ATR失败");
+                    return 1;
+                }
+
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "RFATR", cJSON_CreateString(RFATR.c_str()));
+                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(FJKH.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+            default:
+            {
+                RunlogF("未知的命令: %s", Cmd.c_str());
+                strcpy(pszRcCode, "0003");
+                return 1;
+            }
+            break;
+            }
+            cJSON_Delete(json);
+        }
+        else
+        {
+            return 1;
+        }
+        return 0;
+    }
+
+    int Evolis_Z390_Printer::ZS_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char * pszRcCode)
+    {
+        RunlogF("CmdParam = %s",CmdParam.c_str());
+        std::string  msg;
+        std::string  retJSON = "";
+        int index = Cmd.find(':');
+        std::string temp = Cmd.substr(0, index);
+        Cmd = Cmd.substr(index + 1);
+
+        const char* pError;
+        cJSON *json = cJSON_Parse((char *)CmdParam.c_str(),&pError);
+        if (!json)
+        {
+            RunlogF("无法解析效的命令参数:%s",CmdParam.c_str());
+            strcpy(pszRcCode,"0001");
+            return 1;
+        }
+
+        if (0 == strcmp(temp.c_str(), "WriteCitizenCard_3309"))
+        {
+            //char szErr[1024] = { 0 };
+            char temp[1024] = { 0 };
+            char *out;
+            switch (atoi(Cmd.c_str()))
+            {
+            case 1:
+            {
+                std::string SJS;//随机数
+                std::string FSYZ;//分散因子
+                std::string FJKH;//非接卡号
+                std::string CMD;//写卡数据
+                std::string NAME;//姓名
+                std::string CERTTYPE;//证件类型
+                std::string CERTNUMBER;//证件号码
+                std::string SEX;//性别
+                std::string CONTACTNUMBER;//接触卡号
+                std::string BANKNUMBER;//银行卡号
+
+
+                cJSON *jsonNAME;
+                jsonNAME = cJSON_GetObjectItem(json, "NAME");
+                NAME = jsonNAME->valuestring;
+                if (NAME.empty())
+                {
+                    RunlogF("解析姓名失败");
+                    return 1;
+                }
+
+                cJSON *jsonCERTTYPE;
+                jsonCERTTYPE = cJSON_GetObjectItem(json, "CERTTYPE");
+                CERTTYPE = jsonCERTTYPE->valuestring;
+                if (CERTTYPE.empty())
+                {
+                    RunlogF("解析证件类型失败");
+                    return 1;
+                }
+
+
+                cJSON *jsonCERTNUMBER;
+                jsonCERTNUMBER = cJSON_GetObjectItem(json, "CERTNUMBER");
+                CERTNUMBER = jsonCERTNUMBER->valuestring;
+                if (CERTNUMBER.empty())
+                {
+                    RunlogF("解析证件号码失败");
+                    return 1;
+                }
+
+                cJSON *jsonSEX;
+                jsonSEX = cJSON_GetObjectItem(json, "SEX");
+                SEX = jsonSEX->valuestring;
+                if (SEX.empty())
+                {
+                    RunlogF("解析性别失败");
+                    return 1;
+                }
+
+                cJSON *jsonCONTACTNUMBER;
+                jsonCONTACTNUMBER = cJSON_GetObjectItem(json, "CONTACTNUMBER");
+                CONTACTNUMBER = jsonCONTACTNUMBER->valuestring;
+                if (CONTACTNUMBER.empty())
+                {
+                    RunlogF("解析接触卡号失败");
+                    return 1;
+                }
+
+                cJSON *jsonBANKNUMBER;
+                jsonBANKNUMBER = cJSON_GetObjectItem(json, "BANKNUMBER");
+                BANKNUMBER = jsonBANKNUMBER->valuestring;
+                if (BANKNUMBER.empty())
+                {
+                    RunlogF("解析银行卡号失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu("00A4040008A000000632010105",msg));	//打开文件夹
+
+                CheckResult(RunApdu("00B0950A0A",msg));	//获取对应数据
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+                FSYZ = msg.substr(4);
+
+                CheckResult(RunApdu("0084000008",msg));
+
+                SJS = msg.substr(0, msg.length() - 4);
+
+                string strGBKName = Utf8_GBK(NAME.c_str());
+                RunlogF("UTF-8 Name = %s --->GBK:%s.",NAME.c_str(),strGBKName.c_str());
+                NAME = strGBKName;
+
+                //NAME转ASC
+                pReader->hex_a((unsigned char*)NAME.c_str(), (unsigned char*)temp, NAME.length());
+                NAME = temp;
+                transform(NAME.begin(), NAME.end(), NAME.begin(), ::toupper);
+                int num = 0;
+                num = 40 - NAME.length();//补齐数
+                if (num > 0)
+                {
+                    NAME = NAME + std::string(num, '0');
+                }
+
+                //CERTNUMBER转ASC
+                pReader->hex_a((unsigned char*)CERTNUMBER.c_str(), (unsigned char*)temp, CERTNUMBER.length());
+                CERTNUMBER = temp;
+                transform(CERTNUMBER.begin(), CERTNUMBER.end(), CERTNUMBER.begin(), ::toupper);
+                num = 0;
+                num = 64 - CERTNUMBER.length();//补齐数
+                if (num > 0)
+                {
+                    CERTNUMBER = CERTNUMBER + std::string(num, '0');
+                }
+
+                //SEX转ASC
+                pReader->hex_a((unsigned char*)SEX.c_str(), (unsigned char*)temp, SEX.length());
+                SEX = temp;
+                transform(SEX.begin(), SEX.end(), SEX.begin(), ::toupper);
+
+                //CONTACTNUMBER转ASC
+                pReader->hex_a((unsigned char*)CONTACTNUMBER.c_str(), (unsigned char*)temp, CONTACTNUMBER.length());
+                CONTACTNUMBER = temp;
+                transform(CONTACTNUMBER.begin(), CONTACTNUMBER.end(), CONTACTNUMBER.begin(), ::toupper);
+
+                CMD = "04D696023A" + NAME + CERTNUMBER + CERTTYPE + SEX;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "FACTOR", cJSON_CreateString(FSYZ.c_str()));
+                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(FJKH.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+
+            }
+            break;
+            case 2:
+            {
+                std::string INSTRUCTION;
+
+                cJSON *jsonINSTRUCTION;
+                jsonINSTRUCTION = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonINSTRUCTION->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    RunlogF("解析指令集失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu(INSTRUCTION,msg));
+
+                String2Char(retJSON);
+            }
+            break;
+            case 3:
+            {
+                std::string RFATR = "";//非接芯片ATR
+                std::string FJKH = "";//非接卡号
+
+                CheckResult(RunApdu("00B0950A0A",msg));	//获取对应数据
+                if (msg.substr(msg.length() - 4, 4) == "9000")
+                {
+                    msg = msg.substr(0, msg.length() - 4);
+                    FJKH = msg.substr(1);
+                }
+
+                //if (ReadType == DC_CARD)
+                {
+                    char Atr[128] = { 0 };
+                    ResetCard(Atr);
+                    RFATR = Atr;
+                    if (RFATR.empty())
+                    {
+                        RunlogF("获取ATR失败");
+                        return 1;
+                    }
+                }
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "RFATR", cJSON_CreateString(RFATR.c_str()));
+                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(FJKH.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+
+            }
+            break;
+
+            default:
+            {
+                RunlogF("未知的命令: %s", Cmd.c_str());
+                strcpy(pszRcCode, "0003");
+                return 1;
+            }
+            break;
+            }
+            cJSON_Delete(json);
+        }
+        else
+        {
+            return 1;
+        }
+        return 0;
+    }
+
+    int Evolis_Z390_Printer::JH_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char * pszRcCode)
+    {
+        RunlogF("CmdParam = %s",CmdParam.c_str());
+        std::string  msg;
+        std::string  retJSON = "";
+        int index = Cmd.find(':');
+        std::string temp = Cmd.substr(0, index);
+        Cmd = Cmd.substr(index + 1);
+
+        const char* pError;
+        cJSON *json = cJSON_Parse((char *)CmdParam.c_str(),&pError);
+        if (!json)
+        {
+            RunlogF("无法解析效的命令参数:%s",CmdParam.c_str());
+            strcpy(pszRcCode,"0001");
+            return 1;
+        }
+
+        if (0 == strcmp(temp.c_str(), "WriteCitizenCard_3307"))
+        {
+            char szErr[1024] = { 0 };
+            char temp[1024] = { 0 };
+            char *out;
+
+            switch (atoi(Cmd.c_str()))
+            {
+            case 1:
+            {
+                std::string SJS;//随机数
+                std::string FSYZ;//分散因子
+                std::string FJKH;//非接卡号
+                std::string CMD;//写卡数据
+                std::string MAINTYPE;//主类型
+                std::string SUBTYPE;//子类型
+
+                cJSON *jsonMAINTYPE;
+                jsonMAINTYPE = cJSON_GetObjectItem(json, "MAINTYPE");
+                MAINTYPE = jsonMAINTYPE->valuestring;
+                if (MAINTYPE.empty())
+                {
+                    MAINTYPE = szErr;
+                    RunlogF("解析MAINTYPE失败");
+                    return 1;
+                }
+
+                cJSON *jsonSUBTYPE;
+                jsonSUBTYPE = cJSON_GetObjectItem(json, "SUBTYPE");
+                SUBTYPE = jsonSUBTYPE->valuestring;
+                if (SUBTYPE.empty())
+                {
+                    SUBTYPE = szErr;
+                    RunlogF("解析SUBTYPE失败");
+                    return 1;
+                }
+                CheckResult(RunApdu( "00A40000023F00",msg));
+                RunlogF(msg.c_str());
+                CheckResult(RunApdu( "00A4040008A000000632010105",msg));	//打开文件夹
+
+                CheckResult(RunApdu( "00B0950A0A",msg));	//获取对应数据
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+                FSYZ = msg.substr(4);
+
+                CheckResult(RunApdu( "0084000004",msg));
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+
+                int tempNum = atoi(MAINTYPE.c_str());
+                sprintf(temp, "%02X", tempNum);
+                MAINTYPE = temp;
+
+                transform(MAINTYPE.begin(), MAINTYPE.end(), MAINTYPE.begin(), ::toupper);
+
+
+                CMD = "04D6851C06" + MAINTYPE + SUBTYPE;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "FACTOR", cJSON_CreateString(FSYZ.c_str()));
+                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(FJKH.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+            case 2:
+            {
+                std::string INSTRUCTION = "";//指令集(需写入)
+                cJSON *jsonInstruction;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+
+                //写入指令集
+                CheckResult(RunApdu( INSTRUCTION,msg));
+            }
+            break;
+            case 3:
+            {
+                std::string RFATR = "";//非接芯片ATR
+                std::string FJKH = "";//非接卡号
+
+                CheckResult(RunApdu( "00B0950A0A",msg ));	//获取对应数据
+
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+
+
+                //if (ReadType == DC_CARD)
+                {
+                    char Atr[128] = { 0 };
+                    ResetCard( Atr);
+                    RFATR = Atr;
+                    if (RFATR.empty())
+                    {
+                        RunlogF("获取ATR失败");
+                        return 1;
+                    }
+                }
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "RFATR", cJSON_CreateString(RFATR.c_str()));
+                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(FJKH.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+            default:
+            {
+                RunlogF("未知的命令: %s", Cmd.c_str());
+                strcpy(pszRcCode, "0003");
+                return 1;
+            }
+
+            break;
+            }
+            cJSON_Delete(json);
+        }
+        else
+        {
+            return 1;
+        }
+        return 0;
+    }
+
+    int Evolis_Z390_Printer::YW_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char * pszRcCode)
+    {
+        //义乌市民卡命令
+        RunlogF("CmdParam = %s",CmdParam.c_str());
+        std::string  msg;
+        std::string  retJSON = "";
+        int index = Cmd.find(':');
+        std::string temp = Cmd.substr(0, index);
+        Cmd = Cmd.substr(index + 1);
+
+        const char* pError;
+        cJSON *json = cJSON_Parse((char *)CmdParam.c_str(),&pError);
+        if (!json)
+        {
+            RunlogF("无法解析效的命令参数:%s",CmdParam.c_str());
+            strcpy(pszRcCode,"0001");
+            return 1;
+        }
+
+        if (0 == strcmp(temp.c_str(), "WriteCitizenCard_330782"))
+        {
+            //char outContent[1024] = { 0 };
+            char szErr[1024] = { 0 };
+            char temp[1024] = { 0 };
+            char *out;
+
+            switch (atoi(Cmd.c_str()))
+            {
+            case 1:
+            {
+                std::string QYBZ;//启用标志
+                std::string SJS;//随机数
+                std::string FSYZ;//分散因子
+                std::string FJKH;//非接卡号
+                std::string CMD;//写卡数据
+
+                cJSON *jsonQYBZ;
+                jsonQYBZ = cJSON_GetObjectItem(json, "QYBZ");
+                QYBZ = jsonQYBZ->valuestring;
+                if (QYBZ.empty())
+                {
+                    QYBZ = szErr;
+                    RunlogF("解析QYBZ失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu( "00A4040008A000000632010105",msg ));	//打开文件夹
+
+                CheckResult(RunApdu( "00B0950A0A",msg));	//获取对应数据
+
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+                FSYZ = msg.substr(4);
+
+                CheckResult(RunApdu( "0084000004",msg));
+
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+                transform(QYBZ.begin(), QYBZ.end(), QYBZ.begin(), ::toupper);
+                CMD = "04D6950905" + QYBZ;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "FACTOR", cJSON_CreateString(FSYZ.c_str()));
+                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(FJKH.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+
+            }
+            break;
+            case 2:
+            {
+                std::string INSTRUCTION = "";//指令集(需写入)
+                std::string QDRQ = "";//启动日期
+                std::string YXRQ = "";//有效日期
+                std::string SJS = "";//随机数
+                std::string CMD = "";//写卡数据
+
+                cJSON *jsonInstruction, *jsonQDRQ, *jsonYXRQ;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+
+                //写入指令集
+                CheckResult(RunApdu(INSTRUCTION,msg ));
+
+                jsonQDRQ = cJSON_GetObjectItem(json, "QDRQ");
+                QDRQ = jsonQDRQ->valuestring;
+                if (QDRQ.empty())
+                {
+                    QDRQ = szErr;
+                    RunlogF("解析QDRQ失败");
+                    return 1;
+                }
+
+                jsonYXRQ = cJSON_GetObjectItem(json, "YXRQ");
+                YXRQ = jsonYXRQ->valuestring;
+                if (YXRQ.empty())
+                {
+                    YXRQ = szErr;
+                    RunlogF("解析YXRQ失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu( "0084000004",msg));
+
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+                CMD = "04D695140C" + QDRQ + YXRQ;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+            case 3:
+            {
+                std::string INSTRUCTION = "";//指令集(需写入)
+                std::string MAINTYPE = "";//主类型
+                std::string SUBTYPE = "";//子类型
+                std::string SJS = "";//随机数
+                std::string CMD = "";//写卡数据
+
+                cJSON *jsonInstruction, *jsonMainType, *jsonSubType;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+
+                //写入指令集
+                CheckResult(RunApdu( INSTRUCTION,msg));
+
+                jsonMainType = cJSON_GetObjectItem(json, "MAINTYPE");
+                MAINTYPE = jsonMainType->valuestring;
+
+                if (MAINTYPE.empty())
+                {
+                    MAINTYPE = szErr;
+                    RunlogF("解析MAINTYPE失败");
+                    return 1;
+                }
+
+                jsonSubType = cJSON_GetObjectItem(json, "SUBTYPE");
+                SUBTYPE = jsonSubType->valuestring;
+
+                if (SUBTYPE.empty())
+                {
+                    SUBTYPE = szErr;
+                    RunlogF("解析SUBTYPE失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu( "0084000004",msg));
+
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+                CMD = "04D6851C06" + MAINTYPE + SUBTYPE;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+            case 4:
+            {
+                std::string INSTRUCTION = "";//指令集(需写入)
+                std::string NAME = "";//姓名
+                std::string CERTTYPE = "";//证件类型
+                std::string CERTNUMBER = "";//证件号
+                std::string SJS = "";//随机数
+                std::string CMD = "";//写卡数据
+
+                cJSON *jsonInstruction, *jsonName, *jsonCertType, *jsonCertNumber;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+
+                //写入指令集
+                CheckResult(RunApdu( INSTRUCTION,msg));
+
+                jsonName = cJSON_GetObjectItem(json, "NAME");
+                NAME = jsonName->valuestring;
+
+                if (NAME.empty())
+                {
+                    NAME = szErr;
+                    RunlogF("解析NAME失败");
+                    return 1;
+                }
+                jsonCertType = cJSON_GetObjectItem(json, "CERTTYPE");
+                CERTTYPE = jsonCertType->valuestring;
+                if (CERTTYPE.empty())
+                {
+                    CERTTYPE = szErr;
+                    RunlogF("解析CERTTYPE失败");
+                    return 1;
+                }
+
+                jsonCertNumber = cJSON_GetObjectItem(json, "CERTNUMBER");
+                CERTNUMBER = jsonCertNumber->valuestring;
+                if (CERTNUMBER.empty())
+                {
+                    CERTNUMBER = szErr;
+                    RunlogF("解析CERTNUMBER失败");
+                    return 1;
+                }
+
+                CheckResult(RunApdu( "0084000004",msg));
+                SJS = msg.substr(0, msg.length() - 4);
+                SJS += "00000000";
+
+                //20字节ASCII姓名+32字节ASCII证件号码+1字节BCD证件类型
+                pReader->hex_a((unsigned char*)NAME.c_str(), (unsigned char*)temp, NAME.length());
+                NAME = temp;
+                transform(NAME.begin(), NAME.end(), NAME.begin(), ::toupper);
+                int num = 40 - NAME.length();//补齐数
+                NAME = NAME + std::string(num, '0');
+                memset(temp, 0, 1024);
+                pReader->hex_a((unsigned char*)CERTNUMBER.c_str(), (unsigned char*)temp, CERTNUMBER.length());
+                CERTNUMBER = temp;
+                transform(CERTNUMBER.begin(), CERTNUMBER.end(), CERTNUMBER.begin(), ::toupper);
+                num = 64 - CERTNUMBER.length();//补齐数
+                CERTNUMBER = CERTNUMBER + std::string(num, '0');
+
+                CMD = "04D6960239" + NAME + CERTNUMBER + CERTTYPE;
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "SJS", cJSON_CreateString(SJS.c_str()));
+                cJSON_AddItemToObject(root_json, "CMD", cJSON_CreateString(CMD.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+
+                String2Char(retJSON);
+            }
+            break;
+            case 5:
+            {
+                std::string INSTRUCTION = "";//指令集(需写入)
+
+                cJSON *jsonInstruction;
+                jsonInstruction = cJSON_GetObjectItem(json, "INSTRUCTION");
+                INSTRUCTION = jsonInstruction->valuestring;
+                if (INSTRUCTION.empty())
+                {
+                    INSTRUCTION = szErr;
+                    RunlogF("解析INSTRUCTION失败");
+                    return 1;
+                }
+                //写入指令集
+                CheckResult(RunApdu( INSTRUCTION,msg));
+                String2Char(retJSON);
+            }
+            break;
+            case 6:
+            {
+                std::string RFATR = "";//非接芯片ATR
+                std::string FJKH = "";//非接卡号
+                CheckResult(RunApdu( "00B0950A0A",msg));	//获取对应数据
+
+                msg = msg.substr(0, msg.length() - 4);
+                FJKH = msg.substr(1);
+
+
+                //if (ReadType == DC_CARD)
+                {
+                    char Atr[128] = { 0 };
+                    ResetCard(Atr);
+                    RFATR = Atr;
+                    if (RFATR.empty())
+                    {
+                        RunlogF("获取ATR失败");
+                        return 1;
+                    }
+                }
+
+                cJSON *root_json;
+                root_json = cJSON_CreateObject();//创建项目
+
+                cJSON_AddItemToObject(root_json, "RFATR", cJSON_CreateString(RFATR.c_str()));
+                cJSON_AddItemToObject(root_json, "FJKH", cJSON_CreateString(FJKH.c_str()));
+
+                out = cJSON_PrintUnformatted(root_json);
+                retJSON = out;
+                cJSON_Delete(root_json);
+                String2Char(retJSON);
+            }
+            break;
+
+            default:
+            {
+                RunlogF("未知的命令: %s", Cmd.c_str());
+                strcpy(pszRcCode, "0003");
+                return 1;
+            }
+            break;
+            }
+            cJSON_Delete(json);
+        }
+        else
+        {
+            return 1;
+        }
+
+        return 0;
+    }
+
+//    int Evolis_Z390_Printer::WZ_CitizenCardExAPDU(std::string Cmd, std::string CmdParam,LPVOID &lpCmdOut, char *pszRcCode)
+//    {
+//        //RecFunc();
+
+//        std::string  msg;
+//        std::string  retJSON = "";
+//        int index = Cmd.find(':');
+//        std::string temp = Cmd.substr(0, index);
+//        RunlogF("Cmd = %s",Cmd.c_str());
+//        RunlogF("CmdParam = %s",CmdParam.c_str());
+//        Cmd = Cmd.substr(index + 1);
+//        RunlogF("CmdIndex = %s",Cmd.c_str());
+
+//        QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
+//        QJsonParseError jsErr;
+//        QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+//        if (jsdoc.isNull())
+//        {
+//            RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+//            return false;
+//        }
+//        QJsonObject jsobj = jsdoc.object();
+//        char szErr[1024] = { 0 };
+//        //strcpy(cpOutMsg,"Test String");
+//        //lpCmdOut = cpOutMsg;
+
+//        switch (atoi(Cmd.c_str()))
+//        {
+//        case 1:
+//        {
+//            //RecFunc();
+//            cJSON *root_json = cJSON_CreateObject();
+//            root_json = cJSON_CreateObject();//创建项目
+
+//            //CheckResult(RunApdu(m_hReader, "00A40000023F00",msg));
+//            // 复位以获得ATR
+//            ResetCard(pszRcCode);
+//            CheckResult(SelectSSSE(msg));
+//            CheckResult(SelectDir("EF05",msg));
+//            CheckResult(ReadFile("01",msg));
+
+//            //msg = "0110330300D15600000501005794E4B2CBAC9000";
+//            m_CardInfo.identifyNum = msg.substr(4, msg.length() - 8);
+//            m_CardInfo.regionCode = m_CardInfo.identifyNum.substr(0, 6);
+
+//            CheckResult(ReadFile("03",msg));      // 获取卡版本号
+//            m_CardInfo.cardVersion = GetTlvValue(msg);
+//            RunlogF("CardVersion = %s",m_CardInfo.cardVersion.c_str());
+
+//            CheckResult(ReadFile("04",msg));      // 获取Initial Organize
+
+//            CheckResult(ReadFile("05",msg));      // 获取CardReleaseDate
+//            m_CardInfo.cardReleaseDate = GetTlvValue(msg);
+//            RunlogF("cardReleaseDate = %s",m_CardInfo.cardReleaseDate.c_str());
+
+//            CheckResult(ReadFile("06",msg));      // 获取CardValidDate
+//            m_CardInfo.cardValidDate = GetTlvValue(msg);
+//            RunlogF("cardValidDate = %s",m_CardInfo.cardValidDate.c_str());
+
+//            CheckResult(ReadFile("07",msg));      // 获取CardNumber
+//            m_CardInfo.cardNumber = GetTlvValue(msg);
+//            RunlogF("cardNumber = %s",m_CardInfo.cardNumber.c_str());
+
+//            //四个随机数
+//            std::vector<std::string> vRandom;
+//            for (int i = 0; i < 4; i++)
+//            {
+//                //msg = "E1B5773ACE7F699C9000";
+//                CheckResult(GetRandom(msg));
+//                vRandom.push_back(msg.substr(0, 16));
+//            }
+
+//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+//            cJSON_AddItemToObject(root_json, "SJS1", cJSON_CreateString(vRandom[0].c_str()));
+//            cJSON_AddItemToObject(root_json, "SJS2", cJSON_CreateString(vRandom[1].c_str()));
+//            cJSON_AddItemToObject(root_json, "SJS3", cJSON_CreateString(vRandom[3].c_str()));
+//            cJSON_AddItemToObject(root_json, "SJS4", cJSON_CreateString(vRandom[2].c_str()));
+//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9013"));
+
+//            retJSON = cJSON_PrintUnformatted(root_json);
+//            cJSON_Delete(root_json);
+//            String2Char(retJSON);
+//            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
+//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+//        }
+//        break;
+//        case 2:
+//        {
+//            RecFunc();
+//            std::string	RESULT1 = "",RESULT2 = "";
+//            if (!jsobj.contains("RESULT2"))
+//            {
+//                RunlogF("Can't find 'RESULT2' object!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+
+//            RESULT2 = jsobj.value("RESULT2").toString().toStdString();
+//            if (RESULT2.empty())
+//            {
+//                strcpy(pszRcCode, "0003");
+//                RunlogF("RESULT2 can't be empty!");
+//                return 1;
+//            }
+//            RunlogF("RESULT2 = %s",RESULT2.c_str());
+
+//            CheckResult(ExternalAuth("0A10",RESULT2,msg));      // 读认证
+
+//            CheckResult(ReadFile("07",msg));
+//            m_CardInfo.cardNumber = GetTlvValue(msg);
+//            RunlogF("Card Number = %s",m_CardInfo.cardNumber.c_str());
+
+//            CheckResult(SelectDir("EF06",msg));
+//            CheckResult(ReadFile("01",msg));
+//            m_CardInfo.cardID = GetTlvValue(msg);
+//            RunlogF("CardID = %s",m_CardInfo.cardID.c_str());
+
+//            CheckResult(ReadFile("02",msg));
+//            m_CardInfo.name = GBK_UTF8(GetTlvValue(msg).c_str());
+//            RunlogF("Name = %s",m_CardInfo.name.c_str());
+
+//            //checkName(m_CardInfo.cardID, "0", "");
+
+//            RunlogF("Region Code = %s",m_CardInfo.regionCode.c_str());
+
+//            CheckResult(RunApdu("0084000008",msg));
+//            //msg = "E1B5773ACE7F699C9000";
+//            string strOData = msg.substr(0, 16);
+//            //msg = "13184466C59FB6B49000";
+//            CheckResult(RunApdu( "0084000008",msg));
+//            string strDisFac = msg.substr(0, 16);
+
+//            cJSON *root_json = cJSON_CreateObject();
+//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
+//            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+//            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("0094"));
+//            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
+//            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
+//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
+
+//            retJSON = cJSON_PrintUnformatted(root_json);
+//            String2Char(retJSON);
+//            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
+//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+//            cJSON_Delete(root_json);
+//        }
+//        break;
+//        case 3:
+//        {
+//            //RecFunc();
+//            if (!jsobj.contains("RESULT") || !jsobj.contains("PIC"))
+//            {
+//                RunlogF("Can't find 'RESULT' or 'PIC' object!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+
+//            std::string	RESULT = jsobj.value("RESULT").toString().toStdString();
+//            RunlogF("Result = %s",RESULT.c_str());
+//            std::string	PIC = jsobj.value("PIC").toString().toStdString();
+//            if (RESULT.empty() ||PIC.empty())
+//            {
+//                RunlogF("RESULT or Pic can't be empty!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+
+//            // 注意：同样的参数，用cjson解析会失败，找不到Result字段，用QJson则不会
+//            /*cJSON *json_RESULT = cJSON_GetObjectItem(json, "RESULT");
+//            RunlogF("json string = %s.", cJSON_PrintUnformatted(json));
+//            if (nullptr == json_RESULT )
+//            {
+//                RunlogF("Can't find 'RESULT' object!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+
+//            std::string	PIC = "";
+//            RESULT = json_RESULT->valuestring;
+//            if (RESULT.empty())
+//            {
+//                strcpy(pszRcCode, "0002");
+//                RunlogF("解析RESULT失败:%s",RESULT.c_str());
+//                return 1;
+//            }
+//            RunlogF("Result = %s",RESULT.c_str());
+
+//            cJSON *json_PIC = cJSON_GetObjectItem(json, "PIC");
+//            if (nullptr == json_PIC)
+//            {
+//                RunlogF("Can't find 'PIC' object!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+//            PIC = json_PIC->valuestring;
+//            if (PIC.empty())
+//            {
+//                strcpy(pszRcCode, "0002");
+//                RunlogF("解析RESULT失败:%s",PIC.c_str());
+//                return 1;
+//            }*/
+
+//            //压缩图片数据
+//            std::string strCompressedPic = "";
+//            if (CompressPic(PIC, strCompressedPic) != 0)
+//            {
+//                RunlogF("压缩图片失败:%s");
+//                strcpy(pszRcCode, "0005");
+//                return 1;
+//            }
+
+//            CheckResult(ExternalAuth("0410",RESULT,msg));       // 写认证
+//            CheckResult(SelectDir("EF08",msg));
+
+//            //写入照片数据
+//            if(WriteImageInfo(strCompressedPic,szErr) != 0)
+//            {
+//                strcpy(pszRcCode, szErr);
+//                return 1;
+//            }
+
+//            CheckResult(SelectDir("DF01",msg));
+//            CheckResult(GetRandom(msg));
+//            //msg = "E1B5773ACE7F699C9000";
+//            string strOData = msg.substr(0, 16);
+
+//            CheckResult(GetRandom(msg));
+//            //msg = "13184466C59FB6B49000";
+//            string strDisFac = msg.substr(0, 16);
+
+//            RunlogF("Try to Create json object!");
+//            cJSON *root_json = cJSON_CreateObject();
+//            //shared_ptr<cJSON> JsonDestruct(root_json,cJSON_Delete);
+//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.identifyNum.substr(0, 6).c_str()));
+//            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+//            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("0179"));
+//            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
+//            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
+//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
+
+//            retJSON = cJSON_PrintUnformatted(root_json);
+//            String2Char(retJSON);
+//            //strcpy(cpOutMsg,"Test String!");
+//            lpCmdOut = cpOutMsg;
+//            cJSON_Delete(root_json);
+//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+//        }
+//        break;
+//        case 4:
+//        {
+//            RecFunc();
+//            // {"RESULT":"8D1CF983465BB67EAEB20632C4D0F7AD","ADDR":"浙江省温州市龙湾区张家","PHONE":"18888179633"}
+//            std::string RANDOM1, RANDOM2;
+//            if (!jsobj.contains("RESULT") ||
+//                !jsobj.contains("ADDR") ||
+//                !jsobj.contains("PHONE") ||
+//                !jsobj.contains("ADDRCODE"))
+//            {
+//                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' object!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+
+//            string strResult     = jsobj.value("RESULT").toString().toStdString();
+//            string strAddr       = jsobj.value("ADDR").toString().toStdString();
+//            string strAddrCode   = jsobj.value("ADDRCODE").toString().toStdString();
+//            string strPhone      = jsobj.value("PHONE").toString().toStdString();
+
+//            if (strResult.empty() || strAddr.empty() || strAddrCode.empty() || strPhone.empty())
+//            {
+//                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' can't be empty!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+//            RunlogF("Result = %s\tAddr = %s\tAddrCode = %s\tPhone = %s",strResult.c_str(),strAddr.c_str(),strAddrCode.c_str(),strPhone.c_str());
+
+//            RunlogF("GBK(Addr) = %s",UTF8_GBK(strAddr.c_str()).c_str());
+//            CheckResult(ExternalAuth("8610",strResult, msg));       // 写认证
+
+//            strAddr = GetTlvString(UTF8_GBK(strAddr.c_str()).c_str(),160);
+
+//            strPhone = GetTlvString(strPhone,30);
+
+//            CheckResult(SelectDir("EF06",msg));
+//            CheckResult(WriteFile("01", "23", strAddr.c_str(),msg));
+//            CheckResult(WriteFile("02", "24", strAddrCode,msg));
+//            CheckResult(WriteFile("03", "28", strPhone,msg));
+
+//            CheckResult(GetRandom(msg));
+//            string strOData = msg.substr(0, 16);
+
+//            CheckResult(GetRandom(msg));
+//            string strDisFac = msg.substr(0, 16);
+
+//            cJSON *root_json = cJSON_CreateObject();
+//            //shared_ptr<cJSON> JsonDestruct(root_json,cJSON_Delete);
+//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
+//            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+//            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("009A"));
+//            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
+//            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
+//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
+
+//            retJSON = cJSON_PrintUnformatted(root_json);
+//            cJSON_Delete(root_json);
+//            String2Char(retJSON);
+//            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
+//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+//        }
+//        break;
+//        case 5:
+//        {
+//            std::string	RESULT = "", ORGCODE = "";
+//            if (!jsobj.contains("RESULT") ||
+//                !jsobj.contains("ORGCODE"))
+//            {
+//                RunlogF("Can't find 'RESULT' or 'ORGCODE' object!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+//            RESULT = jsobj.value("RESULT").toString().toStdString();
+//            ORGCODE = jsobj.value("ORGCODE").toString().toStdString();
+
+//            if (RESULT.empty())
+//            {
+//                strcpy(pszRcCode, "0002");
+//                RunlogF("'RESULT' can't be empty!");
+//                return 1;
+//            }
+
+//            RunlogF("RESULT = %s\tORGCODE = %s",RESULT.c_str(),ORGCODE.c_str());
+
+//            CheckResult(ExternalAuth("8410", RESULT,msg));      // 写入认证
+
+//            CheckResult(SelectDir("EF09",msg));
+
+//            ORGCODE = GetTlvString(ORGCODE,18);
+
+//            CheckResult(WriteFile("02", "30", ORGCODE, msg));
+
+//            CheckResult(GetRandom(msg));
+//            string strOData = msg.substr(0, 16);
+
+//            CheckResult(GetRandom(msg));
+//            string strDisFac = msg.substr(0, 16);
+
+//            cJSON *root_json = cJSON_CreateObject();
+//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
+//            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
+//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+//            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("009D"));
+//            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
+//            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
+//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
+
+//            retJSON = cJSON_PrintUnformatted(root_json);
+//            String2Char(retJSON);
+//            cJSON_Delete(root_json);
+//            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
+//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+//        }
+//        break;
+//        case 6:
+//        {
+//            RecFunc();
+//            std::string	RESULT = "", COUNTRY = "";
+//            if (!jsobj.contains("RESULT") ||
+//                !jsobj.contains("COUNTRY"))
+//            {
+//                RunlogF("Can't find 'RESULT' or 'COUNTRY' object!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+//            RESULT = jsobj.value("RESULT").toString().toStdString();
+//            COUNTRY = jsobj.value("COUNTRY").toString().toStdString();
+
+//            if (RESULT.empty() )
+//            {
+//                strcpy(pszRcCode, "0002");
+//                RunlogF("'RESULT' can't be empty!");
+//                return 1;
+//            }
+//            RunlogF("RESULT = %s\tORGCODE = %s",RESULT.c_str(),COUNTRY.c_str());
+//            CheckResult(ExternalAuth("8710", RESULT,msg));
+//            CheckResult(SelectDir("EF0A",msg));
+
+//            COUNTRY = GetTlvString(COUNTRY,6);
+
+//            CheckResult(WriteFile( "01", "37", COUNTRY, msg));
+//        }
+//        break;
+//        default:
+//        {
+//            RunlogF("未知的命令: %s", Cmd.c_str());
+//            strcpy(pszRcCode, "0100");
+//            return 1;
+//        }
+//        break;
+//        }
+
+//        strcpy(pszRcCode, "0000");
+//        return 0;
+//    }
 };
 

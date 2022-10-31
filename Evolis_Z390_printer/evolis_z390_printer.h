@@ -312,6 +312,42 @@ public:
         int WriteCard6(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode);
         int WriteCard7(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode);        
         int WriteCardDebug(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode);
+        /************************************************************************/
+        /* 温州市民卡                                                           */
+        /************************************************************************/
+        int WZ_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode);
+
+        /************************************************************************/
+        /* 温州市扩展信息                                                         */
+        /************************************************************************/
+        //int WZ_CitizenCardExAPDU(std::string Cmd, std::string CmdParam,LPVOID &lpCmdOut, char *pszRcCode);
+
+        /************************************************************************/
+        /* 嘉兴市民卡                                                           */
+        /************************************************************************/
+        int JX_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode);
+
+        /************************************************************************/
+        /* 绍兴市民卡                                                           */
+        /************************************************************************/
+        int SX_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode);
+
+        /************************************************************************/
+        /* 舟山市民卡                                                           */
+        /************************************************************************/
+        int ZS_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode);
+
+        /************************************************************************/
+        /* 金华市民卡                                                           */
+        /************************************************************************/
+        int JH_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode);
+
+        /************************************************************************/
+        /* 义乌市民卡                                                           */
+        /************************************************************************/
+        int YW_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode);
+
+
 		string CreateNode(std::string nodeName, std::string nodeVal);
 		int fPubExtractXML(char* xmlStr, char* code, char* content, char* retMsg);
 		int fXMLExtract(char* xmlstr, char* code, char* content, char* retMsg);
@@ -321,8 +357,20 @@ public:
 
         int ResetCard(char * pszRCode);
 
-        bool WriteFile( string fileID, string tag, string val, string &strOutmsg);
-        bool WriteCA( string fileID, string tag, string val,string &strOutmsg);
+        bool ReadFile(string fileID,string &strOutMsg);
+
+        bool WriteFile(string fileID, string tag, string val, string &strOutmsg);
+
+        bool WriteCA(string fileID, string tag, string val,string &strOutmsg);
+
+        bool SelectSSSE(string &strMsg);
+
+        bool SelectDir(string strDirID,string &msg);
+
+        bool ExternalAuth(string strAddr,string strKey,string &msg);
+
+        bool GetRandom(string &strMsg);      
+
         string SM4Enc(string Key, string DATA);
         void hexstrxor(char* HexStr1, char* HexStr2, char* HexStr);
         string SM4_MAC(string RAM, string DATA, string CTK);
@@ -444,5 +492,7 @@ private:
     ReaderPtr   pReader = nullptr;
 
 };
+
+int Bin2Hexstring(unsigned char* pHex, int nHexLen, CHAR* szAscString, int nBuffLen);
 
 #endif // EVOLIS_Z390_PRINTER_H

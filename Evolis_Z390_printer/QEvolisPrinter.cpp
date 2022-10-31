@@ -12,9 +12,11 @@
 #include <algorithm>
 #include <QDir>
 #include <QDateTime>
+#include <QSettings>
 #include <fstream>
 #include <sstream>
 #include <turbojpeg.h>
+#include "SimpleIni.h"
 #include "QEvolisPrinter.h"
 #include "AES.h"
 #include <opencv2/opencv.hpp>
@@ -724,6 +726,14 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
             return 1;
         }
     }
+    char szSN[128] = {0};
+    if (GetSN(szSN))
+    {
+        strcpy(pszRcCode,"0006");
+        RunlogF("Failed in GetSN.\n");
+        return 1;
+    }
+    SaveSN(szSN);
 
     //RunlogF("%s Succeed.\n",__PRETTY_FUNCTION__);
     strcpy(pszRcCode, "0000");
@@ -742,6 +752,72 @@ bool IsNumString(char *pString)
         }
     }
     return true;
+}
+
+int  QEvolisPrinter::SaveSN(char *szSN)
+{
+    string strIni = "/etc/str.conf";
+    /*FILE *fp = fopen(szCnfPath,"a");
+    if  (!fp)
+    {
+         RunlogF("Failed in fopen %s.\n",szCnfPath);
+         return 1;
+    }
+    else
+        fclose(fp);*/
+
+    CSimpleIniA Setting;
+    QFileInfo fi(strIni.c_str());
+    bool bCreateNewFile = false;
+    string strSN;
+    if (fi.isFile())
+    {
+        if (Setting.LoadFile(strIni.c_str()) != SI_OK)
+        {
+            RunlogF("Failed in loading file %s.\n",strIni.c_str());
+            return 1;
+        }
+        strSN = Setting.GetValue("set","sn");
+    }
+    else
+        bCreateNewFile = true;
+
+    if (bCreateNewFile ||strSN != szSN)
+    {
+        Setting.SetValue("set","sn",szSN);
+        if (Setting.SaveFile(strIni.c_str()) != SI_OK)
+        {
+            RunlogF("Failed in writing file %s.\n",strIni.c_str());
+            return 1;
+        }
+        else
+        {
+             RunlogF("Succeed in writing file %s.\n",strIni.c_str());
+        }
+    }
+
+    return 0;
+}
+
+int  QEvolisPrinter::GetSN(char *szSN)
+{
+    if (!szSN)
+    {
+        return 1;
+    }
+    char pszRcCode[128] = {0};
+    CheckPrinter(m_pPrinter);
+    const char* szRSN = "Rsn";
+    char szReply[128] = {0};
+    if (pevolis_command(m_pPrinter,szRSN,strlen(szRSN),szReply,sizeof(szReply)) < 0)
+    {
+        RunlogF("Failed in evolis_command(%s).\n",szRSN);
+        strcpy(pszRcCode,"0006");
+        bFault = true;
+        return 1;
+    }
+    strcpy(szSN,szReply);
+    return 0;
 }
 
 int  QEvolisPrinter::GetRibbonStatus(char *pszRcCode)
@@ -1157,7 +1233,6 @@ int  QEvolisPrinter::Retract(long lTimeout, int nBoxNo, char *pszRcCode)
     bFault = false;
     return  0;
 }
-
 
 int  QEvolisPrinter::EnableCard(long lTimeout, int nCheckable, char *pszRcCode)
 {
@@ -2163,11 +2238,13 @@ int ReadJpeg(string strFile,string &strBuffer,int &nWidth,int &nHeight)
                 ifs.seekg(0,ios::beg);
                 ifs.read(&strFileBuffer[0],strFileBuffer.length() - 1);
             }
+            RunlogF("File %s Tail:%02X %02X.\n",strFile.c_str(),(UCHAR)strFileBuffer[nFileSize - 2],(UCHAR)strFileBuffer[nFileSize - 1]);
 
             if (bRepairEnd)
             {
                 if (strFileBuffer[nFileSize - 1] == 0xFF)
                 {
+                    RunlogF("Repair jpeg Tail of file:%s.\n",strFile.c_str());
                     strFileBuffer[nFileSize] = 0xD9;
                     nFileSize ++;
                 }
