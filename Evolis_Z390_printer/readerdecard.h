@@ -10,6 +10,9 @@ using dc_reset           = short  (*)(DEVHANDLE icdev, unsigned short _Msec);
 using dc_setcpu          = short  (*)(DEVHANDLE icdev, unsigned char _Byte);
 using dc_cpureset        = short  (*)(DEVHANDLE icdev, unsigned char *rlen, unsigned char *databuffer);
 using dc_cpureset_hex    = short  (*)(DEVHANDLE icdev, unsigned char *rlen, char *databuffer);
+using dc_pro_resetInt_hex= short  (*)(DEVHANDLE icdev, unsigned char *rlen, char *receive_data);
+using dc_card_n_hex      = short  (*)(DEVHANDLE icdev, unsigned char _Mode, unsigned int *SnrLen, unsigned char *_Snr);
+using dc_config_card     = short  (*)(DEVHANDLE icdev, unsigned char cardtype);
 using dc_cpudown         = short  (*)(DEVHANDLE icdev);
 using dc_cpuapduInt      = short  (*)(DEVHANDLE icdev, unsigned int slen, char *sendbuffer, unsigned int *rlen, char *databuffer);
 using dc_cpuapduInt_hex  = short  (*)(DEVHANDLE icdev, unsigned int slen, char *sendbuffer, unsigned int *rlen, char *databuffer);
@@ -19,6 +22,8 @@ using dc_readdevsnr      = short  (*)(DEVHANDLE icdev,unsigned char *szSN);
 using dc_getver          = short  (*)(DEVHANDLE icdev,unsigned char *szVer);
 using dc_GetBankAccountNumber = short(*)(DEVHANDLE icdev,int nType,char *szNumber);
 using dc_beep            = short (*)(DEVHANDLE iddev,unsigned short _Msec);
+using dc_pro_commandlinkInt = short (*)(DEVHANDLE icdev, unsigned int slen, unsigned char *sendbuffer, unsigned int *rlen, unsigned char *databuffer, unsigned char timeout);
+using dc_pro_commandlinkInt_hex = short (*)(DEVHANDLE icdev, unsigned int slen, char *sendbuffer, unsigned int *rlen, char *databuffer, unsigned char timeout);
 
 class Readerdecard :public ReaderBase
 {
@@ -37,6 +42,11 @@ private:
     dc_getver         pdc_getver         = nullptr;
     dc_GetBankAccountNumber pdc_GetBankAccountNumber = nullptr;
     dc_beep           pdc_beep           = nullptr;
+    dc_config_card    pdc_config_card    = nullptr;
+    dc_card_n_hex     pdc_card_n_hex     = nullptr;
+    dc_pro_resetInt_hex pdc_pro_resetInt_hex = nullptr;
+    dc_pro_commandlinkInt pdc_pro_commandlinkInt = nullptr;
+    dc_pro_commandlinkInt_hex pdc_pro_commandlinkInt_hex = nullptr;
 //    hex_a             phex_a             = nullptr;
 //    a_hex             pa_hex             = nullptr;
 public:
@@ -65,6 +75,11 @@ public:
         pdc_cpudown        = GetProcAddr(pHandle,dc_cpudown       );
         pdc_beep           = GetProcAddr(pHandle,dc_beep);
         pdc_GetBankAccountNumber= GetProcAddr(pHandle,dc_GetBankAccountNumber);
+        pdc_config_card    = GetProcAddr(pHandle,dc_config_card);
+        pdc_card_n_hex     = GetProcAddr(pHandle,dc_card_n_hex);
+        pdc_pro_resetInt_hex = GetProcAddr(pHandle,dc_pro_resetInt_hex);
+        pdc_pro_commandlinkInt = GetProcAddr(pHandle,dc_pro_commandlinkInt);
+        pdc_pro_commandlinkInt_hex = GetProcAddr(pHandle,dc_pro_commandlinkInt_hex);
 //        phex_a             = GetProcAddr(pHandle,hex_a);
 //        pa_hex             = GetProcAddr(pHandle,a_hex);
     }
@@ -115,35 +130,101 @@ public:
             pdc_reset(hReader,(unsigned short)nTimeout);
     }
 
-    virtual int  SetCardSlot(int nSlot =  0x0C)
-    {
-       return 0;
+    virtual int  SetCardSlot(int nPos = Pos_Contact)
+    {// 0 for contact,1 for contactless
+        nCardPos = (CardPostion)nPos;
+
+        switch (nCardPos)
+        {
+        default:
+        case Pos_Non         :
+        case Pos_Bezel       :
+        case Pos_Print       :
+        case Pos_OutofEntrance:
+        case Pos_Blocked     :
+        case Pos_Unknow      :
+            this->nSlot = -1;
+             break;
+        case Pos_Contactless :
+            this->nSlot = 'A';    // contactless
+             break;
+        case Pos_Contact     :
+            this->nSlot = 0x0C;
+             break;
+        }
+        return 0;
     }
 
     virtual int  PowerOn(char *szArtInfo,int &nRetLen)
     {
-        int nResult = pdc_setcpu(hReader,0x0C);
-        if (nResult < 0)
-            return nResult;
+        int nRet  = 0;
+        if (nSlot == 'A')
+        {
+            int nCount = 1;
+            while(nCount++ < 5)
+            {
+                pdc_reset(hReader,10);
+                nRet = pdc_config_card(hReader,(uchar)nSlot);
+                if (!nRet)
+                    break;
+            }
+            if (nRet)
+                return nRet;
+            uint nLen;
+            nCount = 1;
+            uchar Snr[32] = {0};
+            while(nCount++ < 5)
+            {
+                nRet = pdc_card_n_hex(hReader,0,&nLen,(uchar *)Snr);
+                if (!nRet)
+                    break;
+            }
+            if (nRet)
+                return nRet;
+            nCount = 1;
+            while(nCount++ < 5)
+            {
+                nRet = pdc_pro_resetInt_hex(hReader,(uchar *)&nRetLen,(char *)szArtInfo);
+                if (!nRet)
+                    break;
+            }
+            return nRet;
+        }
+        else
+        {
+            int nResult = pdc_setcpu(hReader,(uchar)nSlot);
+            if (nResult < 0)
+                return nResult;
 
-        return pdc_cpureset_hex(hReader, (unsigned char*)&nRetLen, szArtInfo);
+            return pdc_cpureset_hex(hReader, (unsigned char*)&nRetLen, szArtInfo);
+        }
     }
 
     virtual int  PowerOff()
     {
-        return pdc_cpudown(hReader);
+        if (nSlot)
+            pdc_reset(hReader,10);
+        else
+            pdc_cpudown(hReader);
+        pdc_exit(hReader);
+        hReader = -1;
+        return 0;
     }
 
     virtual int  ApduInt(const uchar *szSrc,uint nSrcLen,uchar *szDst,uint &nDstLen)
     {
-        // dc_cpuapduInt(DEVHANDLE icdev, unsigned int slen, char *sendbuffer, unsigned int *rlen, char *databuffer)
-        return pdc_cpuapduInt(hReader,nSrcLen,(char *)szSrc,&nDstLen,(char *)szDst);
+        if (nSlot == 'A')
+           return pdc_pro_commandlinkInt(hReader,nSrcLen,(uchar *)szSrc,&nDstLen,(uchar *)szDst,10);
+        else
+           return pdc_cpuapduInt(hReader,nSrcLen,(char *)szSrc,&nDstLen,(char *)szDst);
     }
 
     virtual int  ApduIntHex(const char *szSrc,uint nSrcLen,char *szDst,uint &nDstLen)
     {
-        // dc_cpuapduInt_hex(DEVHANDLE icdev, unsigned int slen, char *sendbuffer, unsigned int *rlen, char *databuffer);
-        return pdc_cpuapduInt_hex(hReader,nSrcLen,(char *)szSrc,&nDstLen,szDst);
+        if (nSlot == 'A')
+            return pdc_pro_commandlinkInt_hex(hReader,nSrcLen,(char *)szSrc,&nDstLen,(char *)szDst,10);
+        else
+            return pdc_cpuapduInt_hex(hReader,nSrcLen,(char *)szSrc,&nDstLen,szDst);
     }
 
     virtual int  GetDevSN(unsigned char* szSN)

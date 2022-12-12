@@ -57,6 +57,17 @@ bool g_bEnalbeEvolislog = true;
 int  g_nLogPeriod = 30;
 int g_nEvolis_logLevel = 0;
 
+const char* g_szCardPosition[] = {
+        "Pos_Non",
+        "Pos_Mr",
+        "Pos_Contact",
+        "Pos_Contactless",
+        "Pos_Print",
+        "Pos_Bezel",
+        "Pos_Blocked",
+        "Pos_OutofEntrance",
+        "Pos_Unknow"
+};
 //#define RunlogF(...)    Runlog(__PRETTY_FUNCTION__,__LINE__,__VA_ARGS__);
 //#define Funclog()       //FuncRunlog(__PRETTY_FUNCTION__,__LINE__);
 
@@ -744,27 +755,123 @@ extern "C"
         Q_UNUSED(byUID);
         Q_UNUSED(nUidLen);
         Funclog();
+        if (!pEvolisPriner)
+        {
+            RunlogF("Printer connection is invalid.\n");
+            return 1;
+        }
 
         if (pReader)
         {
             int ret = 0;
-			char dataBuffer[1024] = { 0 };
-            int nRes = pReader->PowerOn(dataBuffer,ret );
-            if (nRes)
-			{
-                if (pReader->GetVender() == Vender::Minhua &&
-                    pReader->nCardPos == CardPostion::Pos_Contact)
-                {
-                    if (pEvolisPriner->MoveCard(Pos_Contactless))
-                    {
-                        strcpy(pszRcCode, "0019");
-                        RunlogF("Failed in move card to contactless.\n");
-                        return 1;
-                    }
-                    nRes = pReader->PowerOn(dataBuffer,ret );
-                }
-			}
-			
+            char dataBuffer[1024] = { 0 };
+            int nRes = -1;
+//            int nRes = pReader->PowerOn(dataBuffer,ret );
+//            if (nRes)
+//			{
+//                if (pReader->GetVender() == Vender::Minhua &&
+//                    pReader->nCardPos == CardPostion::Pos_Contact)
+//                {
+//                    if (pEvolisPriner->MoveCard(Pos_Contactless))
+//                    {
+//                        strcpy(pszRcCode, "0019");
+//                        RunlogF("Failed in move card to contactless.\n");
+//                        return 1;
+//                    }
+//                    nRes = pReader->PowerOn(dataBuffer,ret );
+//                }
+//			}
+
+            char szReply[64] = { 0 };
+            if (pEvolisPriner->ppevolis_command(pEvolisPriner->m_pPrinter,"Rlr;p", 5, szReply, sizeof(szReply),__LINE__) < 0)
+            {
+                RunlogF("Failed in evolis_command(Rlr;p).");
+                pEvolisPriner->bFault = true;
+                return 1;
+            }
+            CardPostion nNextPos = Pos_Unknow;
+            CardPostion nCurPos = Pos_Unknow;
+            if (strcmp(szReply,"SMART CARD") == 0)
+            {
+                nCurPos = Pos_Contact;
+                nNextPos = Pos_Contactless;
+            }
+            else if(strcmp(szReply,"CONTACTLESS CARD") == 0)
+            {
+                nCurPos = Pos_Contactless;
+                nNextPos = Pos_Contact;
+            }
+            else if (strcmp(szReply,"CARD") == 0 )
+            {
+                 nCurPos = Pos_Print;
+            }
+            else
+            {
+                 strcpy(pszRcCode, "0001");
+                 return 1;
+            }
+            if (nCurPos == Pos_Contact || nCurPos == Pos_Contactless)
+            {
+                 pReader->SetCardSlot(nCurPos);
+                 RunlogF("Try to PowerOn card on %s.\n",g_szCardPosition[nCurPos]);
+                 if (nRes = pReader->PowerOn(dataBuffer,ret))
+                 {
+                     RunlogF("Failed in PowerOn card on %s.\n",g_szCardPosition[nCurPos]);
+                     RunlogF("Try to move card to %s.",g_szCardPosition[nNextPos]);
+                     if (pEvolisPriner->MoveCard((CardPostion)nNextPos,false))
+                     {
+                         RunlogF("Failed in MoveCard %s.",g_szCardPosition[nNextPos]);
+                         strcpy(pszRcCode,"0001");
+                         return 1;
+                     }
+                     pReader->SetCardSlot(nNextPos);
+                     RunlogF("Try to PowerOn card on Pos_Contact.\n");
+                     if (nRes = pReader->PowerOn(dataBuffer,ret))
+                     {
+                         RunlogF("Failed in PowerOn card on %s.",g_szCardPosition[nNextPos]);
+                     }
+                     else
+                     {
+                         RunlogF("Succed in PowerOn card on %s.",g_szCardPosition[nNextPos]);
+                     }
+                 }
+                 else
+                 {
+                     RunlogF("Succed in PowerOn card on %s.",g_szCardPosition[nCurPos]);
+                 }
+            }
+            else if (nCurPos == Pos_Print)
+            {
+                 bool bSucceed = false;
+                 for (int nPos = Pos_Contact;nPos <= Pos_Contactless;nPos ++)
+                 {
+                     RunlogF("Try to move card to %s.",g_szCardPosition[nPos]);
+                     if (pEvolisPriner->MoveCard((CardPostion)nPos),false)
+                     {
+                         RunlogF("Failed in MoveCard %s.",g_szCardPosition[nPos]);
+                         strcpy(pszRcCode,"0001");
+                         return 1;
+                     }
+                     pReader->SetCardSlot(nPos);
+                     RunlogF("Try to PowerOn card on Pos_Contact.");
+                     if (nRes = pReader->PowerOn(dataBuffer,ret))
+                     {
+                         RunlogF("Failed in PowerOn card on %s.",g_szCardPosition[nPos]);
+                     }
+                     else
+                     {
+                         bSucceed = true;
+                         RunlogF("Succeed in PowerOn card on %s.",g_szCardPosition[nPos]);
+                         break;
+                     }
+                 }
+                 if (!bSucceed)
+                 {
+                     strcpy(pszRcCode,"0001");
+                     return 1;
+                 }
+            }
+
             if (nRes)
             {
                 strcpy(pszRcCode, "0019");
@@ -778,9 +885,15 @@ extern "C"
             RunlogF(strInfo.c_str());
 			nAtrlen = ret;
 			strcat((char*)byOutAtr, CardATR.c_str());
-			strcpy(pszRcCode, "0000");
+            strcpy(pszRcCode, "0000");
+            return 0;
         }
-        return 0;
+        else
+        {
+            strcpy(pszRcCode, "0001");
+            return 1;
+        }
+
     }
     /** @ingroup CLithographPrinter Function declaration
       * @brief  IC卡下电(若支持需实现)
@@ -1044,26 +1157,27 @@ extern "C"
 //        }
 
         RunlogF("pText = %s, nAngle = %d, fxPos = %f, fyPos = %f, pFontName = %s,nFontSize  = %d, nFontStyle  = %d, nColor = %d", pText, nAngle, fxPos, fyPos, pFontName, nFontSize, nFontStyle, nColor);
-
         TextInfoPtr inTextInfo = std::make_shared<TextInfo>();
 
         char szUtf8[256] = {0};
         GB2312_UTF8(pText,strlen(pText),szUtf8,256);
-
         inTextInfo->sText = szUtf8;
         inTextInfo->nAngle = nAngle;
         inTextInfo->fxPos = fxPos;
         inTextInfo->fyPos = fyPos;
-        QString strCurrentDir = QDir::currentPath();
-        strCurrentDir += "/resources/SIMSUN.ttf";
-        QFileInfo fi(strCurrentDir);
-        if (!fi.isFile())
+
+        QString strFontPath = QDir::currentPath();
+        strFontPath += "/resources/";
+        strFontPath += pFontName;
+        strFontPath += ".ttf";
+        QFileInfo fi(strFontPath);
+        if (!fi.exists())
         {
-            RunlogF("Can't open font:%ss.",strCurrentDir.toStdString().c_str());
+            RunlogF("Can't find font file:%s",strFontPath.toStdString().c_str());
             strcpy(pszRcCode,"0014");
             return 1;
         }
-        inTextInfo->pFontName =strCurrentDir.toStdString().c_str();
+        inTextInfo->pFontName =strFontPath.toStdString().c_str();
         qDebug("Font = %s\t File = %s.",pFontName,inTextInfo->pFontName.c_str());
         inTextInfo->nFontSize = nFontSize;
         inTextInfo->nFontStyle = (FontStyle)nFontStyle;
@@ -1155,7 +1269,52 @@ extern "C"
     {
         Funclog();
         if (pEvolisPriner)
-            return pEvolisPriner->StartPrint(lTimeout,  pszRcCode);
+        {
+            if (0 == pEvolisPriner->StartPrint(lTimeout,  pszRcCode))
+            {
+                int ret = 0;
+                char dataBuffer[1024] = { 0 };
+                if (!pReader)
+                {
+                    RunlogF("The pReader is closed.");
+                    strcpy(pszRcCode,"0001");
+                    return 1;
+                }
+                bool bSucceed = false;
+                for (int nPos = Pos_Contact;nPos <= Pos_Contactless;nPos ++)
+                {
+                    RunlogF("Try to move card to %s.",g_szCardPosition[nPos]);
+                    if (pEvolisPriner->MoveCard((CardPostion)nPos),false)
+                    {
+                        RunlogF("Failed in MoveCard %s.",g_szCardPosition[nPos]);
+                        strcpy(pszRcCode,"0001");
+                        return 1;
+                    }
+                    pReader->SetCardSlot(nPos);
+                    RunlogF("Try to PowerOn card on Pos_Contact.");
+                    if (pReader->PowerOn(dataBuffer,ret))
+                    {
+                        RunlogF("Failed in PowerOn card on %s.",g_szCardPosition[nPos]);
+                    }
+                    else
+                    {
+                        bSucceed = true;
+                        RunlogF("Succeed in PowerOn card on %s.",g_szCardPosition[nPos]);
+                        break;
+                    }
+                }
+                if (bSucceed)
+                {
+                    strcpy(pszRcCode,"0000");
+                    return 0;
+                }
+                else
+                {
+                    strcpy(pszRcCode,"0001");
+                    return 1;
+                }
+            }
+        }
         else
         {
             strcpy(pszRcCode,"0001");
@@ -2150,6 +2309,8 @@ extern "C"
 			return 1;
 		}
         string userPIN = temp;//00A404000C504B492EC9E7BBE1B1A3D5CF
+        CheckResult(RunApdu( "00A40000023F00",msg,false));
+
         CheckResult(RunApdu( "00A404000C504B492EC9E7BBE1B1A3D5CF",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
 
         CheckResult(RunApdu( "00A404000C53532E434552542E41444631",msg)); //卡识别码	 0110 330300D15600000599110145FFFFFFFF 9000
@@ -2639,7 +2800,12 @@ extern "C"
     {
 		RunlogF(pCommand);
         char *pDest = nullptr;
-        if (0 == strcmp(pCommand,"EnableOutput"))
+        if (0 == strcmp(pCommand,"GetVersion"))
+        {
+            strcpy(pszRcCode,LibVer);
+            return 0;
+        }
+        else if (0 == strcmp(pCommand,"EnableOutput"))
         {
             if (!pEvolisPriner)
             {

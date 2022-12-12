@@ -19,9 +19,7 @@ using mwDevBeep             = int  (*)(DEVHANDLE icdev, int beepTimes, int inter
 using getErrDescription     = int  (*)(int errcode,int language,char *message);
 class ReaderMinhua :public ReaderBase,DynamicLib
 {
-
 private:
-    int  nSlot = -1;    // 0 for contact,1 for contactless
     mwDevGetUsbList         pDevGetUsbList          = nullptr;
     mwDevOpen               pDevOpen                = nullptr;
     mwDevClose              pDevClose               = nullptr;
@@ -164,27 +162,19 @@ public:
 
     virtual int  PowerOn(char *szArtInfo,int &nRetLen)
     {
-        int nOpFlag = 115200;
-        if (nSlot == 1)
+       /* 0x00     -9600
+          0x01     -38400
+          0x02     -57600
+          0x03     -115200
+          0x04     -19200
+        */
+        int nOpFlag = 3;        // baudrate 115200
+        if (nSlot == 1)         //  0	:   接触式卡座    1	:   非接触式大卡座
             nOpFlag = 1;
         nError = pSmartCardReset_HEX(hReader, nSlot, szArtInfo,nOpFlag);
         if (nError < 0)
         {
-//            if (nSlot == 0)  // contact? try with contactless!
-//            {
-//                nError = pSmartCardReset_HEX(hReader, 1, szArtInfo,1);
-//                if (nError >= 0) // Succeed ? all the later operation  will swtch to slot1,contactless!
-//                {
-//                    nSlot = 1;
-//                    nOpFlag = 1;
-//                    nRetLen = nError;
-//                    return 0;
-//                }
-//                else
-//                    return nError;
-//            }
-//            else
-                return nError;
+            return nError;
         }
         else
         {

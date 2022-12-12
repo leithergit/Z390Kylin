@@ -9,6 +9,12 @@
 #include <map>
 #include <vector>
 #include <chrono>
+#include <opencv2/opencv.hpp>
+#include <opencv2/freetype.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc/imgproc_c.h>
+using namespace  cv;
 
 #include "dynamiclib.h"
 //#include "evolislib.h"
@@ -18,7 +24,7 @@
 #include <string>
 using namespace std;
 using namespace chrono ;
-#define LibVer     "Z390_1.0.2.5 "
+#define LibVer     "Z390_1.0.2.6 "
 struct myFontInfo
 {
     string strPath;
@@ -180,6 +186,8 @@ using  evolis_get_devices        = int (*)(evolis_device_t** devices, int marks,
 using  evolis_get_mark_name      = const char* (*)(evolis_mark_t mark);
 using  evolis_get_model_name     = const char* (*)(evolis_model_t model);
 using  evolis_print_set_imageb   = int (*)(evolis_t* printer, evolis_face_t face, const char* data, size_t size);
+using  evolis_print_set_imagep   = int (*)(evolis_t* printer, evolis_face_t face, const char* path);
+using  evolis_print_set_blackp   = int (*)(evolis_t* printer, evolis_face_t face, const char* path);
 
 using TextInfoPtr = std::shared_ptr<TextInfo>;
 using TaskPtr = std::shared_ptr<Task>;
@@ -261,6 +269,7 @@ public:
     evolis_get_mark_name    pevolis_get_mark_name    = nullptr;
     evolis_get_model_name   pevolis_get_model_name   = nullptr;
     evolis_print_set_imageb pevolis_print_set_imageb = nullptr;
+    evolis_print_set_blackp pevolis_print_set_blackp  = nullptr;
 
 #define pevolis_command(P1,P2,P3,P4,P5) ppevolis_command(P1,P2,P3,P4,P5,__LINE__)
 
@@ -302,9 +311,11 @@ public:
     //int Qt_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,long nTimeout);
     int Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,long nTimeout,char *pszRcCode);
 
+    int SaveMonoBmp(cv::Mat& canvas,const char* strFile);
+
     int SetPrinterOptions(evolis_t* printer,string strDPI,string strOverlayer);
 
-    int MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,string &strImagePath,char *pszRcCode,float fScale = 1.0f,float fScale2 = 2.0f);
+    int MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,string &strImagePath,string &strTextPath,char *pszRcCode,float fScale = 1.0f,float fScale2 = 2.0f);
 
     int SetDarkTextRegion(int nLeft,int nTop,int nRight,int nBottom);
     PICINFO m_picInfo;
@@ -356,7 +367,7 @@ public:
     int  InDraftCard(long lTimeout,char *pRCode,bool bCheckCard = true);
     int  SendCommand(const char *lpCmdIn,LPVOID &lpCmdOut,char *szRcCode);
     char szEvolisReply[64];
-    int  MoveCard(CardPostion nDstPos);
+    int  MoveCard(CardPostion nDstPos,bool bCheckPos = true);
     int  CheckCardBox(bool &bNoCard,char* pszRcCode);
     //void AddText(char *szText,int nAngle, float fxPos, float fyPos,  int nFontSize, int nColor);
     void PrintText();

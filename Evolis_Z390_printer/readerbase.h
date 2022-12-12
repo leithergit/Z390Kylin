@@ -39,6 +39,7 @@ class ReaderBase
 public:
     int     hReader = -1;
     int     nError  = 0;
+    int     nSlot = -1;    // 0 for contact,1 for contactless
     CardPostion   nCardPos = Pos_Unknow;
     Vender     nVenderID = Vender::Unkonw;
 public:

@@ -113,7 +113,14 @@ ExtraCommand cmdlist[] =
                            "<OLDZKMY>D5E3BDADCAA1C9E7BBE1B1A3D5CFBFA8</OLDZKMY>"
                            "<ZKMY>34383537323230343932363233313039</ZKMY>"
                            "</ROOT>"}},
-
+        {"WriteCitizenCard_3303:01",{"{\"QYBZ\":\"01\"}"},},
+//        {"WriteCitizenCard_3304:01",{"{}"}},
+//        {"WriteCardEx_WenZhou:01",{"{}"}},
+//        {"WriteCardEx_WenZhou:02",{"{\"RESULT1\":\"1322C24C05E47A32410C6F1506A9B23C\",\"RESULT2\":\"51D6ECEAB5076220E135CD36B09BAFAD\"}"}},
+//        {"WriteCardEx_WenZhou:03",{"Select JsonFile","Select Photo"}},
+//        {"WriteCardEx_WenZhou:04",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ADDR\":\"浙江省温州市龙湾区张家\",\"ADDRCODE\":\"330300\",\"PHONE\":\"18888179633\"}")}},
+//        {"WriteCardEx_WenZhou:05",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ORGCODE\":\"123456\"}").toLocal8Bit().data()}},
+//        {"WriteCardEx_WenZhou:06",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"COUNTRY\":\"CHN\"}").toLocal8Bit().data()}},
         {"EvolisCommand",{}},
         {"EvolisStatus",{}},
         {"Reset Delay",{"5000"}},
@@ -284,6 +291,11 @@ void MainWindow::OpenPrinter()
             QList<QPushButton *> buttonList = findChildren<QPushButton *>();
             for (auto var:buttonList)
                 var->setEnabled(true);
+            char szVersion[32] = {0};
+            LPVOID lpOut = nullptr;
+            if (pPrinterInstance->Print_ExtraCommand(5000,"GetVersion",nullptr,lpOut,szVersion) == 0)
+                OutputMsg("Lib Version:%s",szVersion);
+
             ui->pushButton_PrinterOpen->setEnabled(false);
             ui->comboBox_Printer->setEnabled(false);
 
@@ -1181,6 +1193,7 @@ void MainWindow::on_pushButton_PrinterLoadText_clicked()
            OutputMsg("Print_PrintText Failed:%s",szRCode);
            return ;
        }
+       pPrinterInstance->Print_PrintText(lTimeout,"632309 0199121149617",nAngle,17.5,38.5,"arial",16,1,0,szRCode);
 
       OutputMsg("Print_PrintText Succeed!");
 }

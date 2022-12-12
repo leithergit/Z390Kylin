@@ -63,8 +63,8 @@ public:
     {
         memset(szError,0,1024);
         QString strCurrentPath = QDir::currentPath();
-        QString strLibPath =  "./libEvolis_Z390_Printer.so";
-        //QString strLibPath = strCurrentPath + "/libEvolis_Z390.so";
+        //QString strLibPath =  "./libEvolis_Z390_Printer.so";
+        QString strLibPath = strCurrentPath + "/libEvolis_Z390_Printer.so";
         qDebug()<<"Try to load "<<strLibPath;
         pLibhandle = dlopen(strLibPath.toStdString().c_str(),RTLD_NOW|RTLD_GLOBAL);
         if (pLibhandle)
@@ -150,6 +150,9 @@ public:
     void PrintJos();
 
     bool GetCardBoxStatus();
+    void ThreadTestDepense();
+    bool m_bTestDepenseRunning = false;
+    std::thread*     m_pThreadTestDepense = nullptr;
     QString strLogText;
 protected:
     bool eventFilter(QObject *obj, QEvent *e);
@@ -233,6 +236,12 @@ private slots:
     void on_pushButton_AutoPrinter_clicked();
 
     void on_pushButton_ScrollRibbon_clicked();
+
+    void on_pushButton_TestDepense_clicked();
+
+
+
+    void on_pushButton_AutoPrinter_2_clicked();
 
 private:
     Ui::MainWindow *ui;
