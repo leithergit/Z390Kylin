@@ -1144,6 +1144,8 @@ void MainWindow::on_pushButton_SetPrinterOption_clicked()
         OutputMsg("Set Printer Option[%s] to %s Succeed.",szOption[nCardSide][nOption],szVal);
 }
 
+#include <QTextCodec>
+
 void MainWindow::on_pushButton_PrinterLoadText_clicked()
 {
     CheckPriner(pPrinterInstance);
@@ -1173,22 +1175,33 @@ void MainWindow::on_pushButton_PrinterLoadText_clicked()
        if (ui->checkBox_Bold->isChecked())
            nFontStyle = 2;
        QString strFont =  ui->lineEdit_Font->text();
-       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[0].c_str(),nAngle,28,14.5,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+       qDebug()<<"Font = "<<strFont;
+
+       QTextCodec *pGBK = QTextCodec::codecForName("GBK");
+       QTextCodec *pUTF8 = QTextCodec::codecForName("UTF-8");
+
+       QString strUnicodeFont = pUTF8->toUnicode(strFont.toLocal8Bit());
+       qDebug()<<"UnicodeFont = "<<strUnicodeFont;
+       QByteArray byGBKFont = pGBK->fromUnicode(strUnicodeFont);
+       qDebug()<<"GBKFont = "<<byGBKFont;
+       int nIndex = 1;
+
+       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[nIndex++].c_str(),nAngle,28,14.5,(char *)byGBKFont.data(),size,nFontStyle,0,szRCode))
+       {
+           OutputMsg("Print_PrintText Failed:%s",szRCode);
+           //return ;
+       }
+       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[nIndex++].c_str(),nAngle,28,19,(char *)byGBKFont.data(),size,nFontStyle,0,szRCode))
+       {
+           OutputMsg("Print_PrintText Failed:%s",szRCode);
+           //return ;
+       }
+       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[nIndex++].c_str(),nAngle,28,23.5,(char *)byGBKFont.data(),size,nFontStyle,0,szRCode))
        {
            OutputMsg("Print_PrintText Failed:%s",szRCode);
            return ;
        }
-       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[1].c_str(),nAngle,28,19,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
-       {
-           OutputMsg("Print_PrintText Failed:%s",szRCode);
-           return ;
-       }
-       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[2].c_str(),nAngle,28,23.5,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
-       {
-           OutputMsg("Print_PrintText Failed:%s",szRCode);
-           return ;
-       }
-       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[3].c_str(),nAngle,28,28,(char *)strFont.toLocal8Bit().data(),size,nFontStyle,0,szRCode))
+       if (pPrinterInstance->Print_PrintText(lTimeout,(char *)vecText[nIndex++].c_str(),nAngle,28,28,(char *)byGBKFont.data(),size,nFontStyle,0,szRCode))
        {
            OutputMsg("Print_PrintText Failed:%s",szRCode);
            return ;

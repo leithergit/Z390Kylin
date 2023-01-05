@@ -598,6 +598,7 @@ QEvolisPrinter::QEvolisPrinter()
         qDebug()<<"Error:"<<strerror(errno);
         return ;
     }
+    pevolis_log_set_console  = GetProcAddr(pHandle, evolis_log_set_console );
     pevolis_log_set_path     = GetProcAddr(pHandle, evolis_log_set_path    );
     pevolis_log_set_level    = GetProcAddr(pHandle, evolis_log_set_level   );
     pevolis_open2            = GetProcAddr(pHandle, evolis_open2           );
@@ -614,6 +615,7 @@ QEvolisPrinter::QEvolisPrinter()
     pevolis_reset            = GetProcAddr(pHandle, evolis_reset           );
     pfnevolis_print_set_option = GetProcAddr(pHandle, evolis_print_set_option);
     pevolis_print_get_option = GetProcAddr(pHandle, evolis_print_get_option);
+    pevolis_print_export_options= GetProcAddr(pHandle, evolis_print_export_options);
     pevolis_print_set_imagep = GetProcAddr(pHandle, evolis_print_set_imagep);
     pevolis_status           = GetProcAddr(pHandle, evolis_status          );
     pevolis_print_exec       = GetProcAddr(pHandle, evolis_print_exec      );
@@ -625,8 +627,94 @@ QEvolisPrinter::QEvolisPrinter()
     pevolis_print_set_blackp = GetProcAddr(pHandle, evolis_print_set_blackp);
     auto tTime = std::chrono::system_clock::to_time_t(chrono::system_clock::now());
     struct tm* ptm = localtime(&tTime);
+
 }
 
+void QEvolisPrinter::LoadEvolisSettings()
+{
+    QString strCurrentPath = QDir::currentPath();
+    strCurrentPath += "/Evolis_Z390.ini";
+    QSettings Setting(strCurrentPath,QSettings::IniFormat);
+    Setting.beginGroup("EvolisOptions");
+    QStringList strKeyList = Setting.allKeys();
+    for(auto var:strKeyList)
+    {
+        m_mapEvolisSetting[var.toStdString()] = Setting.value(var).toString().toStdString();
+        qDebug()<<var <<" = "<<m_mapEvolisSetting[var.toStdString()].c_str();
+    }
+    Setting.endGroup();
+}
+
+void QEvolisPrinter::InitEvolisSettings()
+{
+    if (!m_pPrinter)
+    {
+        RunlogF("Printer is not opened!");
+        return;
+    }
+    for (auto var:m_mapEvolisSetting)
+    {
+        pevolis_print_set_option(m_pPrinter,var.first.c_str(),var.second.c_str());
+    }
+
+//    m_mapEvolisSetting["IGMonochromeSpeed"]  = "VAL10";         // 0~10
+//    m_mapEvolisSetting["IGSendIQLA"]         = "ON";            // ON~OFF
+//    m_mapEvolisSetting["IGIQLABY"]           = "VAL10";         // 0~20
+//    m_mapEvolisSetting["IGIQLACY"]           = "VAL10";         // 0~20
+//    m_mapEvolisSetting["IGIQLABM"]           = "VAL10";         // 0~10
+//    m_mapEvolisSetting["IGIQLACM"]           = "VAL10";         // 0~10
+//    m_mapEvolisSetting["IGIQLABC"]           = "VAL10";         // 0~10
+//    m_mapEvolisSetting["IGIQLACC"]           = "VAL10";         // 0~10
+//    //m_mapEvolisSetting["BBlackManagement"]   = "";//"TEXTINBLACK";   // NOBLACKPOINT,ALLBLACKPOINT,TEXTINBLACK
+//    m_mapEvolisSetting["FBlackManagement"]   = "BMPVARNISH";    // NOBLACKPOINT,ALLBLACKPOINT,TEXTINBLACK
+//    //m_mapEvolisSetting["BColorBrightness"]   = "";//"VAL10";         // 0~20
+//    m_mapEvolisSetting["FColorBrightness"]   = "VAL10";         // 0~20
+//    //m_mapEvolisSetting["BColorContrast"]     = "";//"VAL10";         // 0~20
+//    m_mapEvolisSetting["FColorContrast"]     = "VAL10";         // 0~20
+//    //m_mapEvolisSetting["BHalftoning"]        = "";//"VAL10";      // THRESHOLD,FLOYD,DITHERING,CLUSTERED_DITHERING
+//    //m_mapEvolisSetting["FHalftoning"]        = "";//"VAL10";      // THRESHOLD,FLOYD,DITHERING,CLUSTERED_DITHERING
+//    m_mapEvolisSetting["FMonochromeContrast"]= "VAL10";        // 0~20
+//    //m_mapEvolisSetting["BMonochromeContrast"]= "";//"VAL10";        // 0~20
+//    m_mapEvolisSetting["FOverlayContrast"]   = "";//"VAL10";         // 0~20
+//    //m_mapEvolisSetting["BOverlayContrast"]   = "";//"VAL10";         // 0~20
+//    m_mapEvolisSetting["FOverlayManagement"]   = "BMPVARNISH";    // NOVARNISH,FULLVARNISH,BMPVARNISH
+//    //m_mapEvolisSetting["BOverlayManagement"] = "";//"BMPVARNISH";    // NOVARNISH,FULLVARNISH,BMPVARNISH
+//    //m_mapEvolisSetting["FPageRotate180"]     = "";//"OFF";           // ON,OFF
+//    //m_mapEvolisSetting["BPageRotate180"]     = "";//"OFF";           // ON,OFF
+//    m_mapEvolisSetting["GHighQualityMode"]     = "ON";            // ON,OFF
+//    //m_mapEvolisSetting["GInputTray"]         = "";//"FEEDER";      // PRINTER,FEEDER,AUTO,BEZEL
+//    //m_mapEvolisSetting["GOutputTray"]        = "";//"BEZEL";       // PRINTER,HOPPER,REAR,BEZEL,REJECT
+//    //m_mapEvolisSetting["GRejectBox"]         = "";//"REJECT";      // PRINTER,DEFAULTREJECT,HOPPER,REJECT
+//    ///m_mapEvolisSetting["Duplex"]             = "";//"NONE";          // NONE,HORIZONTAL
+//    //m_mapEvolisSetting["GDuplexType"]        = "";//"DUPLEX_MM";     // DUPLEX_CC,DUPLEX_CM,DUPLEX_MC,DUPLEX_MM
+//    m_mapEvolisSetting["GRibbonType"]        = "RC_YMCKO";      // RC_YMCKO,RC_YMCKOS,RC_YMCKOK,RC_YMCKOKOS,RM_KO,RM_KBLACK,RM_KWHITE,RM_KRED,RM_KGREEN,RM_KBLUE,RM_KSCRATCH,RM_KMETALSILVER,RM_KMETALGOLD,RM_KSIGNATURE,RM_KWAX,RM_KPREMIUM,RM_HOLO
+//    m_mapEvolisSetting["GSmoothing"]         = "ADVSMOOTH";     // STDSMOOTH,ADVSMOOTH,NOSMOOTH
+//    //m_mapEvolisSetting["IBBlackLevelValue"]  = "";//"253";           // 1,255
+//    m_mapEvolisSetting["IFBlackLevelValue"]  = "253";           // 1,255
+//    //m_mapEvolisSetting["IBTextRegion"]       = "";//"TEXT";          // BLOB
+//    //m_mapEvolisSetting["IFTextRegion"]       = "";//"TEXT";          // BLOB
+//    //m_mapEvolisSetting["IFOverlayDefaultContent"]= "";//"BLOB";      // BLOB
+//    //m_mapEvolisSetting["IBOverlayDefaultContent"]= "";//"BLOB";      // BLOB
+//    //m_mapEvolisSetting["IBOverlayCustom"]    = strOverlay;
+//    m_mapEvolisSetting["IFOverlayCustom"]    =  strOverlayer;
+//    //m_mapEvolisSetting["IBThresholdValue"]   = "";//"128";           // 1~255
+//    //m_mapEvolisSetting["IFThresholdValue"]   = "";//"128";           // 1~255
+//    //m_mapEvolisSetting["IBDarkLevelValue"]   = "";//"200";           // 0~255
+//    m_mapEvolisSetting["IFDarkLevelValue"]   = "200";           // 0~255
+//    //m_mapEvolisSetting["IFBlackCustom"]      = "";//"TEXT";          // TEXT
+//    //m_mapEvolisSetting["IBBlackCustom"]      = "";//"TEXT";          // TEXT
+//    m_mapEvolisSetting["Resolution"]         = "DPI300";               // DPI300,DPI600300,DPI120030
+//    QString strSettingPath = QDir::currentPath();
+//    strSettingPath += "/EvolisOptions.txt";
+//    if (!pevolis_print_export_options(m_pPrinter,strSettingPath.toStdString().c_str(),'|'))
+//    {
+//        RunlogF("Succeed inpevolis_print_export_options");
+//    }
+//    for (auto var:m_mapEvolisSetting)
+//    {
+//        RunlogF("%s = %s",var.first.c_str(),pevolis_print_get_option(m_pPrinter,var.first.c_str()));
+//    }
+}
 
 QEvolisPrinter::~QEvolisPrinter()
 {
@@ -680,7 +768,7 @@ int QEvolisPrinter::CheckPrintZone(char *pszRcCode)
     // 色带区码标签 1046==F61A,.98C=F616
     if (pevolis_command(m_pPrinter,var,strlen(var),szReply,sizeof(szReply)) < 0)
     {
-        RunlogF("Failed in adapting printer\n");
+        RunlogF("Failed in evolis_command(%s)\n",var);
         strcpy(pszRcCode,"0006");
         bFault = true;
         return 1;
@@ -691,6 +779,7 @@ int QEvolisPrinter::CheckPrintZone(char *pszRcCode)
     if (strReply != (const char *)szZone1  &&
         strReply != (const char *)szZone2)
     {
+        RunlogF("Failed in match printer serial number.\n");
         strcpy(pszRcCode, "0004");
         return 2;
     }
@@ -783,12 +872,13 @@ void QEvolisPrinter::CreateEvolislog()
                         tNow.time().hour(),
                         tNow.time().minute(),
                         tNow.time().second());
-//       RunlogF("evolis_log_set_path(%s)",szFileName);
-//       pevolis_log_set_path(szFileName);
-//       if (g_nEvolis_logLevel < 0 || g_nEvolis_logLevel > 4)
-//           g_nEvolis_logLevel = 0;
-//       RunlogF("evolis_log_set_level(%d)",g_nEvolis_logLevel);
-//       pevolis_log_set_level((evolis_log_t)g_nEvolis_logLevel);
+       RunlogF("evolis_log_set_path(%s)",szFileName);
+       pevolis_log_set_console(true);
+       pevolis_log_set_path(szFileName);
+       if (g_nEvolis_logLevel < 0 || g_nEvolis_logLevel > 4)
+           g_nEvolis_logLevel = 0;
+       RunlogF("evolis_log_set_level(%d)",g_nEvolis_logLevel);
+       pevolis_log_set_level((evolis_log_t)g_nEvolis_logLevel);
     }
 }
 
@@ -828,19 +918,19 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
         strcpy(pszRcCode, "0001");
         return 1;
     }
-
-//    if (CheckPrintZone(pszRcCode) != 0)
-//    {
-//        evolis_close(m_pPrinter);
-//        m_pPrinter = nullptr;
-//        return 1;
-//    }
-//    int res = CheckRibbonZone(pszRcCode);
-//    if (res == 1 ||
-//        res == 2)
-//    {
-//        return 1;
-//    }
+    InitEvolisSettings();
+    if (CheckPrintZone(pszRcCode) != 0)
+    {
+        evolis_close(m_pPrinter);
+        m_pPrinter = nullptr;
+        return 1;
+    }
+    int res = CheckRibbonZone(pszRcCode);
+    if (res == 1 ||
+        res == 2)
+    {
+        return 1;
+    }
 
    if (bNoRibbon)
    {
@@ -1193,9 +1283,9 @@ int  QEvolisPrinter::Reset(long lTimeout, int nResetAction, char *pszRcCode)
                 bFault = true;
                 return 1;
             }
-            if (CheckCardPostion(&nCardPos,pszRcCode,Bezel))
+            if (CheckCardPostion(&nCardPos,pszRcCode,Internal))
                 return 1;
-            if (nCardPos != Pos_Bezel)
+            if (nCardPos != Pos_Non)
             {
                 strcpy(pszRcCode,"0016");
                 bFault = true;
@@ -1307,9 +1397,9 @@ int  QEvolisPrinter::Eject(long lTimeout, char *pszRcCode)
 
             this_thread::sleep_for(chrono::milliseconds(100));
         }
-        if (CheckCardPostion(&nCardPos,pszRcCode,Bezel))
+        if (CheckCardPostion(&nCardPos,pszRcCode,Internal))
             return 1;
-        if (nCardPos != Pos_Bezel)
+        if (nCardPos != Pos_Non)
         {
             strcpy(pszRcCode, "0016");
             bFault = true;
@@ -1718,7 +1808,7 @@ int  QEvolisPrinter::Dispense(long lTimeout, int nBox, int nDispPos, char* pszRc
         return 1;
     }
 
-    if (nCardPos != nDispPos )
+    if ((nCardPos != nDispPos) && !(nDispPos ==Pos_Mr && nCardPos == Pos_Print))
     {
         strcpy(pszRcCode, "0016");
         return 1;
@@ -2336,19 +2426,18 @@ Mat myRotateAntiClockWise90(Mat src)//逆时针90°
 
 int QEvolisPrinter::SetPrinterOptions(evolis_t* printer,string strDPI,string strOverlayer)
 {
-    if (strDPI == "DPI300300")
-        pevolis_print_set_option(printer, "IFTextRegion", "0x0x686x477");
-    else
-        pevolis_print_set_option(printer, "IFTextRegion", "0x0x1372x954");
+//    if (strDPI == "DPI300300")
+//        pevolis_print_set_option(printer, "IFTextRegion", "0x0x686x477");
+//    else
+//        pevolis_print_set_option(printer, "IFTextRegion", "0x0x1372x954");
 
     pevolis_print_set_option(printer, "FColorBrightness", "VAL10");
     pevolis_print_set_option(printer, "FColorContrast", "VAL10");
     pevolis_print_set_option(printer, "FOverlayContrast", "VAL10");
     pevolis_print_set_option(printer, "GRibbonType", "RC_YMCKO");
-    //pevolis_print_set_option(printer, "FBlackManagement", "TEXTINBLACK");
     pevolis_print_set_option(printer, "FOverlayManagement", "BMPVARNISH");
     pevolis_print_set_option(printer, "IFOverlayCustom",strOverlayer.c_str());
-    pevolis_print_set_option(printer, "IFBlackLevelValue", "15");
+    pevolis_print_set_option(printer, "IFBlackLevelValue", "40");
     pevolis_print_set_option(printer, "IFDarkLevelValue", "100");
     pevolis_print_set_option(printer, "FMonochromeContrast", "VAL10");
     pevolis_print_set_option(printer, "IGMonochromeSpeed", "VAL10");
@@ -2453,7 +2542,6 @@ int ReadJpeg(string strFile,string &strBuffer,int &nWidth,int &nHeight)
 
 int QEvolisPrinter::MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,string &strImagePath,string &strTextPath,char *pszRcCode,float fScale,float fScale2)
 {
-
     string strJpegBuffer;
     int nPicWidth = 0,nPicHeight = 0;
     if (!inPicInfo.picpath.size())
@@ -2485,10 +2573,15 @@ int QEvolisPrinter::MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVecto
         HeaderImage.create(nPicHeight,nPicWidth,CV_8UC3);
         if (HeaderImage.data)
             memcpy(HeaderImage.data,strJpegBuffer.c_str(),strJpegBuffer.size());
+        else
+        {
+            RunlogF("Insufficent memory in load file :%s.\n",inPicInfo.picpath.c_str());
+            FailedCode("0013");
+        }
     }
     else
     {
-        RunlogF("Load a bmp/png file :%s.\n",inPicInfo.picpath.c_str());
+        RunlogF("Load a bmp file :%s.\n",inPicInfo.picpath.c_str());
         HeaderImage = imread(inPicInfo.picpath, IMREAD_ANYCOLOR);
         if (!HeaderImage.data)
         {
@@ -2496,7 +2589,7 @@ int QEvolisPrinter::MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVecto
              FailedCode("0013");
         }
     }
-    //Mat canvas(nCardHeight*fScale,nCardWidth*fScale,CV_8UC3,Scalar(255,255,255));
+
     Mat canvasImage(nCardHeight*fScale,nCardWidth*fScale,CV_8UC3,Scalar(255,255,255));
     Mat HeaderPrint;
     resize(HeaderImage, HeaderPrint, Size(MM2Pixel(inPicInfo.fWidth*fScale,nDPI_W) , MM2Pixel(inPicInfo.fHeight*fScale,nDPI_H)), 0, 0, INTER_NEAREST);
@@ -2687,9 +2780,10 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
         FailedCode("0006");
     }
     nIdx++;
-
-    RunlogF("pevolis_print_set_option(Resolution,%s).\n",strResolution.c_str());
-    pevolis_print_set_option(m_pPrinter, "Resolution", strResolution.c_str());
+    LoadEvolisSettings();
+    //RunlogF("pevolis_print_set_option(Resolution,%s).\n",strResolution.c_str());
+    //pevolis_print_set_option(m_pPrinter, "Resolution", strResolution.c_str());
+    InitEvolisSettings();
     if (pevolis_print_set_imagep(m_pPrinter, EVOLIS_FA_FRONT,strImagePath.c_str()))
     {
         RunlogF("evolis_print_set_imagep failed:%s.\n",strImagePath.c_str());
@@ -2714,7 +2808,7 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
 
     auto tSpan = duration_cast<milliseconds>( high_resolution_clock::now() - tStart);
     //RunlogF("Prepare print duration:%d.",tSpan.count());
-    SetPrinterOptions(m_pPrinter,strResolution,strOverlayer);
+    //SetPrinterOptions(m_pPrinter,strResolution,strOverlayer);
     evolis_status_t es;
     RunlogF("Try to evolis_print_exec.\n");
     int nStatus = pevolis_print_exec((evolis_t*)m_pPrinter);

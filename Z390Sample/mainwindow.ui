@@ -18,7 +18,7 @@
     <item>
      <widget class="QGroupBox" name="groupBox_4">
       <property name="title">
-       <string>打印功能</string>
+       <string>Print</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_4">
        <item>
@@ -26,7 +26,7 @@
          <item>
           <widget class="QLabel" name="label_4">
            <property name="text">
-            <string>打印机型号:</string>
+            <string>PrinterType</string>
            </property>
           </widget>
          </item>
@@ -81,12 +81,12 @@
           <widget class="QComboBox" name="comboBox_Port">
            <item>
             <property name="text">
-             <string>USB</string>
+             <string>IP</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>IP</string>
+             <string>USB</string>
             </property>
            </item>
            <item>
@@ -122,7 +122,7 @@
          <item>
           <widget class="QLineEdit" name="lineEdit_Address">
            <property name="text">
-            <string>/dev/usb/lp0</string>
+            <string>192.168.1.199</string>
            </property>
           </widget>
          </item>
@@ -141,7 +141,7 @@
             </size>
            </property>
            <property name="text">
-            <string>打开</string>
+            <string>Open</string>
            </property>
           </widget>
          </item>
@@ -160,7 +160,7 @@
             </size>
            </property>
            <property name="text">
-            <string> 关闭</string>
+            <string>Close</string>
            </property>
           </widget>
          </item>
@@ -198,7 +198,7 @@
               </size>
              </property>
              <property name="text">
-              <string> 打印初始化</string>
+              <string>Printer Initialize</string>
              </property>
             </widget>
            </item>
@@ -217,7 +217,7 @@
               </size>
              </property>
              <property name="text">
-              <string>设置选项</string>
+              <string>Set Printer Opertion</string>
              </property>
             </widget>
            </item>
@@ -263,12 +263,12 @@
              </property>
              <item>
               <property name="text">
-               <string>亮度</string>
+               <string>Brightness</string>
               </property>
              </item>
              <item>
               <property name="text">
-               <string>对比度</string>
+               <string>Contrast</string>
               </property>
              </item>
             </widget>
@@ -321,7 +321,7 @@
               </size>
              </property>
              <property name="text">
-              <string>打印机状态</string>
+              <string>Printer Status</string>
              </property>
             </widget>
            </item>
@@ -340,7 +340,7 @@
               </size>
              </property>
              <property name="text">
-              <string> 卡箱状态</string>
+              <string>Card box Status</string>
              </property>
             </widget>
            </item>
@@ -359,7 +359,7 @@
               </size>
              </property>
              <property name="text">
-              <string>复位</string>
+              <string>Device Reset</string>
              </property>
             </widget>
            </item>
@@ -379,17 +379,17 @@
              </property>
              <item>
               <property name="text">
-               <string>保持卡位</string>
+               <string>Keep card position</string>
               </property>
              </item>
              <item>
               <property name="text">
-               <string> 退卡</string>
+               <string>Eject card</string>
               </property>
              </item>
              <item>
               <property name="text">
-               <string>吞卡</string>
+               <string>Retract card</string>
               </property>
              </item>
             </widget>
@@ -409,19 +409,31 @@
               </size>
              </property>
              <property name="text">
-              <string>空走色带</string>
+              <string>Run ribbon moto</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QLabel" name="label">
+             <property name="minimumSize">
+              <size>
+               <width>150</width>
+               <height>0</height>
+              </size>
+             </property>
              <property name="text">
-              <string>卷动次数</string>
+              <string>Scroll ribbon count</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QLineEdit" name="lineEdit_ScrollCount">
+             <property name="maximumSize">
+              <size>
+               <width>50</width>
+               <height>16777215</height>
+              </size>
+             </property>
              <property name="text">
               <string>10</string>
              </property>
@@ -434,7 +446,7 @@
        <item>
         <widget class="QGroupBox" name="groupBox_3">
          <property name="title">
-          <string>进卡选项</string>
+          <string>Card</string>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_3">
           <item>
@@ -443,12 +455,12 @@
              <widget class="QRadioButton" name="radioButton_EnableCardOnce">
               <property name="maximumSize">
                <size>
-                <width>120</width>
+                <width>180</width>
                 <height>16777215</height>
                </size>
               </property>
               <property name="text">
-               <string>出卡口进卡一次</string>
+               <string>Insert from bezel once</string>
               </property>
               <property name="checked">
                <bool>true</bool>
@@ -468,14 +480,14 @@
             <item>
              <widget class="QRadioButton" name="radioButton_EnableCardAlways">
               <property name="text">
-               <string>始终出卡口进卡</string>
+               <string>Insert from bezel always</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QRadioButton" name="radioButton_DisableCard">
               <property name="text">
-               <string>禁止出卡口进卡</string>
+               <string>forbiden insert from bezel</string>
               </property>
              </widget>
             </item>
@@ -519,12 +531,12 @@
              <widget class="QLabel" name="label_6">
               <property name="maximumSize">
                <size>
-                <width>120</width>
+                <width>180</width>
                 <height>16777215</height>
                </size>
               </property>
               <property name="text">
-               <string>卡片目标位置</string>
+               <string>Card Tartget position</string>
               </property>
              </widget>
             </item>
@@ -538,22 +550,22 @@
               </property>
               <item>
                <property name="text">
-                <string>读磁位</string>
+                <string>Mag</string>
                </property>
               </item>
               <item>
                <property name="text">
-                <string>接触位</string>
+                <string>Contact</string>
                </property>
               </item>
               <item>
                <property name="text">
-                <string>非接触位</string>
+                <string>Contactless</string>
                </property>
               </item>
               <item>
                <property name="text">
-                <string>打印位</string>
+                <string>Print</string>
                </property>
               </item>
              </widget>
@@ -573,7 +585,7 @@
                </size>
               </property>
               <property name="text">
-               <string> 进卡/移卡</string>
+               <string>Insert/Move card</string>
               </property>
              </widget>
             </item>
@@ -592,7 +604,7 @@
                </size>
               </property>
               <property name="text">
-               <string>重新进卡</string>
+               <string>Reinject</string>
               </property>
              </widget>
             </item>
@@ -611,7 +623,7 @@
                </size>
               </property>
               <property name="text">
-               <string>退卡</string>
+               <string>Eject</string>
               </property>
              </widget>
             </item>
@@ -630,7 +642,26 @@
                </size>
               </property>
               <property name="text">
-               <string>回收卡</string>
+               <string>Retract</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_TestDepense">
+              <property name="minimumSize">
+               <size>
+                <width>80</width>
+                <height>32</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>200</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>continous insert card</string>
               </property>
              </widget>
             </item>
@@ -642,7 +673,7 @@
        <item>
         <widget class="QGroupBox" name="groupBox_2">
          <property name="title">
-          <string>图像参数</string>
+          <string>Image</string>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_5">
           <item>
@@ -677,7 +708,7 @@
              <widget class="QPushButton" name="pushButton_browsegraph">
               <property name="minimumSize">
                <size>
-                <width>80</width>
+                <width>120</width>
                 <height>32</height>
                </size>
               </property>
@@ -688,7 +719,7 @@
                </size>
               </property>
               <property name="text">
-               <string>选择图片</string>
+               <string>Select a photo</string>
               </property>
              </widget>
             </item>
@@ -701,6 +732,9 @@
             </item>
             <item>
              <widget class="QLineEdit" name="lineEdit_graphX">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="maximumSize">
                <size>
                 <width>30</width>
@@ -727,6 +761,9 @@
             </item>
             <item>
              <widget class="QLineEdit" name="lineEdit_graphY">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="maximumSize">
                <size>
                 <width>30</width>
@@ -750,6 +787,9 @@
             </item>
             <item>
              <widget class="QLineEdit" name="lineEdit_graph_angle">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="maximumSize">
                <size>
                 <width>30</width>
@@ -773,6 +813,9 @@
             </item>
             <item>
              <widget class="QLineEdit" name="lineEdit_graphW">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="maximumSize">
                <size>
                 <width>30</width>
@@ -796,6 +839,9 @@
             </item>
             <item>
              <widget class="QLineEdit" name="lineEdit_graphH">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="maximumSize">
                <size>
                 <width>30</width>
@@ -813,16 +859,22 @@
            </layout>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="1,2,2,0,2,2,2,2,0">
+           <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="1,2,0,2,2,2,2,0,0">
             <item>
              <widget class="QLabel" name="label_10">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="text">
-               <string>字体</string>
+               <string>Font</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QLineEdit" name="lineEdit_Font">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
               <property name="maximumSize">
                <size>
                 <width>16777215</width>
@@ -841,28 +893,12 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="pushButton_browseFont">
-              <property name="minimumSize">
-               <size>
-                <width>80</width>
-                <height>32</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>16777215</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>选择字体</string>
-              </property>
-             </widget>
-            </item>
-            <item>
              <widget class="QCheckBox" name="checkBox_Bold">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
               <property name="text">
-               <string>粗体</string>
+               <string>Bold</string>
               </property>
              </widget>
             </item>
@@ -881,7 +917,7 @@
                </size>
               </property>
               <property name="text">
-               <string>加载文字</string>
+               <string>Load Text</string>
               </property>
              </widget>
             </item>
@@ -900,7 +936,7 @@
                </size>
               </property>
               <property name="text">
-               <string>设置图片</string>
+               <string>Load photo</string>
               </property>
              </widget>
             </item>
@@ -919,7 +955,7 @@
                </size>
               </property>
               <property name="text">
-               <string>开始打印</string>
+               <string>Print</string>
               </property>
              </widget>
             </item>
@@ -938,14 +974,33 @@
                </size>
               </property>
               <property name="text">
-               <string>自动打印</string>
+               <string>Auto Print</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_AutoPrinter_2">
+              <property name="minimumSize">
+               <size>
+                <width>80</width>
+                <height>32</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>200</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>600 DPI</string>
               </property>
              </widget>
             </item>
             <item>
              <widget class="QCheckBox" name="checkBox_AutoPrinter">
               <property name="text">
-               <string>连续打印</string>
+               <string>Continous Print</string>
               </property>
              </widget>
             </item>
@@ -960,7 +1015,7 @@
     <item>
      <widget class="QGroupBox" name="groupBox_6">
       <property name="title">
-       <string>读卡器功能</string>
+       <string>Reader</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>

@@ -24,7 +24,7 @@ using namespace  cv;
 #include <string>
 using namespace std;
 using namespace chrono ;
-#define LibVer     "Z390_1.0.2.6 "
+#define LibVer     "Z390_1.0.2.8a "
 struct myFontInfo
 {
     string strPath;
@@ -162,7 +162,7 @@ struct Task
 
 };
 
-
+using  evolis_log_set_console    = void (*)(bool on);
 using  evolis_log_set_path       = void (*)(const char* path);
 using  evolis_log_set_level      = void (*)(evolis_log_t level);
 using  evolis_open2              = evolis_t* (*)(const char* device, evolis_type_t type);
@@ -179,6 +179,7 @@ using  evolis_print_init         = int (*)(evolis_t* printer);
 using  evolis_reset              = int (*)(evolis_t* printer,int timeout,char* timeouted);
 using  evolis_print_set_option   = int (*)(evolis_t* printer, const char* key, const char* value);
 using  evolis_print_get_option   = const char* (*)(evolis_t* printer, const char* key);
+using  evolis_print_export_options=bool(*)(evolis_t* printer,const char *filepath,char separator );
 using  evolis_print_set_imagep   = int (*)(evolis_t* printer, evolis_face_t face, const char* path);
 using  evolis_status             = int (*)(evolis_t* printer, evolis_status_t* status);
 using  evolis_print_exec         = int (*)(evolis_t* printer);
@@ -246,6 +247,7 @@ class QEvolisPrinter:public DynamicLib
 {
     void *pHandle = nullptr;
 public:
+    evolis_log_set_console  pevolis_log_set_console  = nullptr;
     evolis_log_set_path     pevolis_log_set_path     = nullptr;
     evolis_log_set_level    pevolis_log_set_level    = nullptr;
     evolis_open2            pevolis_open2            = nullptr;
@@ -262,6 +264,7 @@ public:
     evolis_reset            pevolis_reset            = nullptr;
     evolis_print_set_option pfnevolis_print_set_option = nullptr;
     evolis_print_get_option pevolis_print_get_option = nullptr;
+    evolis_print_export_options pevolis_print_export_options;
     evolis_print_set_imagep pevolis_print_set_imagep = nullptr;
     evolis_status           pevolis_status           = nullptr;
     evolis_print_exec       pevolis_print_exec       = nullptr;
@@ -290,6 +293,8 @@ public:
 public:
     QEvolisPrinter();
     ~QEvolisPrinter();
+    void LoadEvolisSettings();
+    void InitEvolisSettings();
 //    void ExtractIso();
 //    void ExtractFont();
 //    list<TaskPtr> listTask;
@@ -327,9 +332,20 @@ public:
     string  strBColorContrast = "";
     string  strFColorBrightness = "";
     string  strFColorContrast = "";
-    string  strIFBlackLevelValue = "15";
+    string  strIFBlackLevelValue = "40";
     string  strIFDarkLevelValue = "15";
     string  strResolution = "DPI300300";
+    string  strIGMonochromeSpeed = "VAL10";
+    string  strIGSendIQLA = "OFF";
+    string  strIGIQLABY = "VAL10";  // 0~20
+    string  strIGIQLACY = "VAL10";  // 0~20
+    string  strIGIQLABM = "VAL10";  // 0~20
+    string  strIGIQLACM = "VAL10";  // 0~20
+    string  strIGIQLABC = "VAL10";  // 0~20
+    string  strIGIQLACC = "VAL10";  // 0~20
+    string  strBBlackManagement ="";// NOBLACKPOINT,ALLBLACKPOINT,TEXTINBLACK
+    map<string,string> m_mapEvolisSetting;
+
     bool    bMarkDPI = false;
     bool    bMarkDateTime = false;
     int     nDPI_W = 300;

@@ -1160,7 +1160,33 @@ extern "C"
         TextInfoPtr inTextInfo = std::make_shared<TextInfo>();
 
         char szUtf8[256] = {0};
+        char szFont[256] = {0};
+
         GB2312_UTF8(pText,strlen(pText),szUtf8,256);
+        GB2312_UTF8(pFontName,strlen(pFontName),szFont,256);
+        QString strUTF8FontName = QString(szFont);
+//        qDebug()<<"strUTFFont = "<< strUTF8FontName;   //output:"宋体\r"
+//        QString strUTFFont1 = QString::fromLocal8Bit(szFont);
+//        qDebug()<<"strUTFFont1 = "<< strUTFFont1; //output:"宋体\r"
+//        QTextCodec *pUTF8 = QTextCodec::codecForName("UTF8");
+//        QTextCodec *pGBK = QTextCodec::codecForName("GBK");
+//        if (!pUTF8)
+//        {
+//            qDebug()<<"Failed in get code for UTF-8-BOM";
+//            return 1;
+//        }
+
+//        if (!pGBK)
+//        {
+//            qDebug()<<"Failed in get code for GBK";
+//            return 1;
+//        }
+
+//        QString strFontUnicode = pGBK->toUnicode(pFontName);
+//        qDebug()<<"strFontUnicode = "<< strFontUnicode;   //output: "宋体\r"
+//        QString strFontUTF8_BOM = pUTF8_BOM->fromUnicode(strFontUnicode);
+//        qDebug()<<"strFontUTF8_BOM = "<< strFontUTF8_BOM;//output: "宋体\r"
+
         inTextInfo->sText = szUtf8;
         inTextInfo->nAngle = nAngle;
         inTextInfo->fxPos = fxPos;
@@ -1168,17 +1194,21 @@ extern "C"
 
         QString strFontPath = QDir::currentPath();
         strFontPath += "/resources/";
-        strFontPath += pFontName;
+        if (strUTF8FontName.contains("宋体"))
+            strFontPath += "SIMSUN";
+        else
+            strFontPath += pFontName;
         strFontPath += ".ttf";
         QFileInfo fi(strFontPath);
         if (!fi.exists())
         {
-            RunlogF("Can't find font file:%s",strFontPath.toStdString().c_str());
+            RunlogF("Can't find font file:%s",strFontPath.toLocal8Bit().data());
             strcpy(pszRcCode,"0014");
             return 1;
         }
+
         inTextInfo->pFontName =strFontPath.toStdString().c_str();
-        qDebug("Font = %s\t File = %s.",pFontName,inTextInfo->pFontName.c_str());
+        RunlogF("Font = %s\t File = %s.",pFontName,inTextInfo->pFontName.c_str());
         inTextInfo->nFontSize = nFontSize;
         inTextInfo->nFontStyle = (FontStyle)nFontStyle;
         inTextInfo->nColor = nColor;
