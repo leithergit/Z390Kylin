@@ -158,6 +158,9 @@ public:
     virtual int  PowerOn(char *szArtInfo,int &nRetLen)
     {
         int nRet  = 0;
+        if (hReader == -1)
+            return 1;
+        qDebug("Slot = %d",nSlot);
         if (nSlot == 'A')
         {
             int nCount = 1;
@@ -202,12 +205,14 @@ public:
 
     virtual int  PowerOff()
     {
+        if (hReader == -1)
+            return 1;
         if (nSlot)
             pdc_reset(hReader,10);
         else
             pdc_cpudown(hReader);
-        pdc_exit(hReader);
-        hReader = -1;
+        //pdc_exit(hReader);
+        //hReader = -1;
         return 0;
     }
 

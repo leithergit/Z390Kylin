@@ -881,10 +881,11 @@ extern "C"
                 return 1;
             }
 			CardATR = dataBuffer;
-            string strInfo = "ATR:" + CardATR;
+            string strInfo = "ATR:" + CardATR.substr(8);
             RunlogF(strInfo.c_str());
 			nAtrlen = ret;
-			strcat((char*)byOutAtr, CardATR.c_str());
+            m_CardInfo.ATR = CardATR.substr(8, 26);
+            strcat((char*)byOutAtr, m_CardInfo.ATR.c_str());
             strcpy(pszRcCode, "0000");
             return 0;
         }
@@ -1635,7 +1636,7 @@ extern "C"
 
         CardATR = dataBuffer;
         string strInfo = "ATR:" + CardATR;
-        RunlogF("ATR:%s",strInfo.c_str());
+        RunlogF("%s",strInfo.c_str());
         m_CardInfo.ATR = CardATR.substr(8, 26);
         strcpy(pszRCode,"0000");
         return 0;
@@ -4057,7 +4058,7 @@ extern "C"
                 //if (ReadType == DC_CARD)
                 {
                     char Atr[128] = { 0 };
-                    if (!ResetCard(Atr))
+                    if (ResetCard(Atr))
                     {
                         RunlogF("Failed in reset card,can't get CardATR.");
                         return 1;
@@ -4141,7 +4142,7 @@ extern "C"
                 FJKH = msg.substr(1);
 
                 char Atr[128] = { 0 };
-                if (!ResetCard(Atr))
+                if (ResetCard(Atr))
                 {
                     RunlogF("Failed in reset card,can't get CardATR.");
                     return 1;

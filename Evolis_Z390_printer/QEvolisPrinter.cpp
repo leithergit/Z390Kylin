@@ -1557,7 +1557,7 @@ int  QEvolisPrinter::EnableCard2(long lTimeout, int nCheckable, char *pszRcCode)
     char szReply[64] = {0};
 
     const char *szCommand[]={
-                         "Psmgr;2",     // 防止进卡和出卡阻塞
+                         //"Psmgr;2",     // 防止进卡和出卡阻塞
                          "Pcim;I;S",    // 从卡箱进卡,并移动到接触位
                          "Pcem;M",      // 从出卡口出卡
                          //"Pneab;E"    // 打印结束后不出卡
