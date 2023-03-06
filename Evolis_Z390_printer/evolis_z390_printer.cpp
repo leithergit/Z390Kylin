@@ -766,21 +766,6 @@ extern "C"
             int ret = 0;
             char dataBuffer[1024] = { 0 };
             int nRes = -1;
-//            int nRes = pReader->PowerOn(dataBuffer,ret );
-//            if (nRes)
-//			{
-//                if (pReader->GetVender() == Vender::Minhua &&
-//                    pReader->nCardPos == CardPostion::Pos_Contact)
-//                {
-//                    if (pEvolisPriner->MoveCard(Pos_Contactless))
-//                    {
-//                        strcpy(pszRcCode, "0019");
-//                        RunlogF("Failed in move card to contactless.\n");
-//                        return 1;
-//                    }
-//                    nRes = pReader->PowerOn(dataBuffer,ret );
-//                }
-//			}
 
             char szReply[64] = { 0 };
             if (pEvolisPriner->ppevolis_command(pEvolisPriner->m_pPrinter,"Rlr;p", 5, szReply, sizeof(szReply),__LINE__) < 0)
@@ -810,6 +795,17 @@ extern "C"
                  strcpy(pszRcCode, "0001");
                  return 1;
             }
+            if(nCurPos == Pos_Print)
+            {
+                if (pEvolisPriner->MoveCard(Pos_Contact),false)
+                {
+                    RunlogF("Failed in MoveCard %s.",g_szCardPosition[Pos_Contact]);
+                    strcpy(pszRcCode,"0001");
+                    return 1;
+                }
+                nCurPos = Pos_Contact;
+            }
+
             if (nCurPos == Pos_Contact || nCurPos == Pos_Contactless)
             {
                  pReader->SetCardSlot(nCurPos);
@@ -825,6 +821,7 @@ extern "C"
                          return 1;
                      }
                      pReader->SetCardSlot(nNextPos);
+
                      RunlogF("Try to PowerOn card on Pos_Contact.\n");
                      if (nRes = pReader->PowerOn(dataBuffer,ret))
                      {
@@ -840,37 +837,6 @@ extern "C"
                      RunlogF("Succed in PowerOn card on %s.",g_szCardPosition[nCurPos]);
                  }
             }
-            else if (nCurPos == Pos_Print)
-            {
-                 bool bSucceed = false;
-                 for (int nPos = Pos_Contact;nPos <= Pos_Contactless;nPos ++)
-                 {
-                     RunlogF("Try to move card to %s.",g_szCardPosition[nPos]);
-                     if (pEvolisPriner->MoveCard((CardPostion)nPos),false)
-                     {
-                         RunlogF("Failed in MoveCard %s.",g_szCardPosition[nPos]);
-                         strcpy(pszRcCode,"0001");
-                         return 1;
-                     }
-                     pReader->SetCardSlot(nPos);
-                     RunlogF("Try to PowerOn card on Pos_Contact.");
-                     if (nRes = pReader->PowerOn(dataBuffer,ret))
-                     {
-                         RunlogF("Failed in PowerOn card on %s.",g_szCardPosition[nPos]);
-                     }
-                     else
-                     {
-                         bSucceed = true;
-                         RunlogF("Succeed in PowerOn card on %s.",g_szCardPosition[nPos]);
-                         break;
-                     }
-                 }
-                 if (!bSucceed)
-                 {
-                     strcpy(pszRcCode,"0001");
-                     return 1;
-                 }
-            }
 
             if (nRes)
             {
@@ -880,11 +846,12 @@ extern "C"
                 RunlogF("PowerOn Failed:%s.\n",strError.c_str());
                 return 1;
             }
-			CardATR = dataBuffer;
-            string strInfo = "ATR:" + CardATR.substr(8);
-            RunlogF(strInfo.c_str());
-			nAtrlen = ret;
-            m_CardInfo.ATR = CardATR.substr(8, 26);
+            RunlogF("ATR Data:%s",dataBuffer);
+
+            CardATR = dataBuffer;
+            nAtrlen = 26;
+            int nOffset = CardATR.size() - nAtrlen;;
+            m_CardInfo.ATR = CardATR.substr(nOffset,nAtrlen);
             strcat((char*)byOutAtr, m_CardInfo.ATR.c_str());
             strcpy(pszRcCode, "0000");
             return 0;
@@ -1635,9 +1602,11 @@ extern "C"
         }
 
         CardATR = dataBuffer;
-        string strInfo = "ATR:" + CardATR;
-        RunlogF("%s",strInfo.c_str());
-        m_CardInfo.ATR = CardATR.substr(8, 26);
+        RunlogF("ATR Data:%s",dataBuffer);
+        int nAtrlen = 26;
+        int nOffset = CardATR.size() - nAtrlen;;
+        m_CardInfo.ATR = CardATR.substr(nOffset,nAtrlen);
+        RunlogF("ATR = %s",m_CardInfo.ATR.c_str());
         strcpy(pszRCode,"0000");
         return 0;
     }

@@ -347,7 +347,6 @@ public:
         /************************************************************************/
         int YW_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode);
 
-
 		string CreateNode(std::string nodeName, std::string nodeVal);
 		int fPubExtractXML(char* xmlStr, char* code, char* content, char* retMsg);
 		int fXMLExtract(char* xmlstr, char* code, char* content, char* retMsg);
@@ -394,8 +393,6 @@ public:
         }
 
         const char* getPlatformABI();
-
-
 
         /**
      * @brief  打开设备。
