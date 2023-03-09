@@ -24,7 +24,7 @@ using namespace  cv;
 #include <string>
 using namespace std;
 using namespace chrono ;
-#define LibVer     "Z390_1.0.2.10 "
+#define LibVer     "Z390_1.0.2.11 "
 struct myFontInfo
 {
     string strPath;
@@ -92,6 +92,18 @@ typedef struct PicInfo
     }
 }PICINFO;
 using PicInfoPtr = shared_ptr<PicInfo>;
+
+typedef struct  _PhotoCompressParameters
+{
+    int     nWidth;
+    int     nHeight ;
+    int     nSize ;
+    int     Parser(string strJson,bool bInput = false);
+    int     Save(string &strJson);
+    string  strJsonFile;
+    _PhotoCompressParameters() noexcept;
+}PhotoCompressParameters;
+
 enum FontStyle
 {
     Style_Normal     = 1,

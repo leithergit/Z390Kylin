@@ -774,28 +774,26 @@ extern "C"
                 pEvolisPriner->bFault = true;
                 return 1;
             }
+
+            vector<CardPostion>vecPostoMove ;
+            CardPostion nPowerPos = Pos_Unknow;
             CardPostion nNextPos = Pos_Unknow;
-            CardPostion nCurPos = Pos_Unknow;
-            if (strcmp(szReply,"SMART CARD") == 0)
+            if (strcmp(szReply,"OK") == 0 )
             {
-                nCurPos = Pos_Contact;
+                strcpy(pszRcCode, "0001");
+                return 1;
+            }
+            else if (strcmp(szReply,"SMART CARD") == 0)
+            {
+                nPowerPos = Pos_Contact;
                 nNextPos = Pos_Contactless;
             }
             else if(strcmp(szReply,"CONTACTLESS CARD") == 0)
             {
-                nCurPos = Pos_Contactless;
+                nPowerPos = Pos_Contactless;
                 nNextPos = Pos_Contact;
             }
-            else if (strcmp(szReply,"CARD") == 0 )
-            {
-                 nCurPos = Pos_Print;
-            }
             else
-            {
-                 strcpy(pszRcCode, "0001");
-                 return 1;
-            }
-            if(nCurPos == Pos_Print)
             {
                 if (pEvolisPriner->MoveCard(Pos_Contact),false)
                 {
@@ -803,39 +801,37 @@ extern "C"
                     strcpy(pszRcCode,"0001");
                     return 1;
                 }
-                nCurPos = Pos_Contact;
+                nPowerPos = Pos_Contact;
+                nNextPos = Pos_Contactless;
             }
-
-            if (nCurPos == Pos_Contact || nCurPos == Pos_Contactless)
+            pReader->SetCardSlot(nPowerPos);
+            RunlogF("Try to PowerOn card on %s.\n",g_szCardPosition[nPowerPos]);
+            nRes = pReader->PowerOn(dataBuffer,ret);
+            if (nRes != 0)
             {
-                 pReader->SetCardSlot(nCurPos);
-                 RunlogF("Try to PowerOn card on %s.\n",g_szCardPosition[nCurPos]);
-                 if (nRes = pReader->PowerOn(dataBuffer,ret))
-                 {
-                     RunlogF("Failed in PowerOn card on %s.\n",g_szCardPosition[nCurPos]);
-                     RunlogF("Try to move card to %s.",g_szCardPosition[nNextPos]);
-                     if (pEvolisPriner->MoveCard((CardPostion)nNextPos,false))
-                     {
-                         RunlogF("Failed in MoveCard %s.",g_szCardPosition[nNextPos]);
-                         strcpy(pszRcCode,"0001");
-                         return 1;
-                     }
-                     pReader->SetCardSlot(nNextPos);
-
-                     RunlogF("Try to PowerOn card on Pos_Contact.\n");
-                     if (nRes = pReader->PowerOn(dataBuffer,ret))
-                     {
-                         RunlogF("Failed in PowerOn card on %s.",g_szCardPosition[nNextPos]);
-                     }
-                     else
-                     {
-                         RunlogF("Succed in PowerOn card on %s.",g_szCardPosition[nNextPos]);
-                     }
-                 }
-                 else
-                 {
-                     RunlogF("Succed in PowerOn card on %s.",g_szCardPosition[nCurPos]);
-                 }
+                RunlogF("Failed in PowerOn card on %s.\n",g_szCardPosition[nPowerPos]);
+                RunlogF("Try to move card to %s.",g_szCardPosition[nNextPos]);
+                if (pEvolisPriner->MoveCard((CardPostion)nNextPos,false))
+                {
+                    RunlogF("Failed in MoveCard %s.",g_szCardPosition[nNextPos]);
+                    strcpy(pszRcCode,"0001");
+                    return 1;
+                }
+                pReader->SetCardSlot(nNextPos);
+                RunlogF("Try to PowerOn card on %s.\n",g_szCardPosition[nNextPos]);
+                nRes = pReader->PowerOn(dataBuffer,ret);
+                if (nRes != 0)
+                {
+                    RunlogF("Failed in PowerOn card on %s.",g_szCardPosition[nNextPos]);
+                }
+                else
+                {
+                    RunlogF("Succed in PowerOn card on %s.",g_szCardPosition[nNextPos]);
+                }
+            }
+            else
+            {
+                RunlogF("Succed in PowerOn card on %s.",g_szCardPosition[nPowerPos]);
             }
 
             if (nRes)
@@ -853,6 +849,7 @@ extern "C"
             int nOffset = CardATR.size() - nAtrlen;;
             m_CardInfo.ATR = CardATR.substr(nOffset,nAtrlen);
             strcat((char*)byOutAtr, m_CardInfo.ATR.c_str());
+            RunlogF("ATR=%s",byOutAtr);
             strcpy(pszRcCode, "0000");
             return 0;
         }
@@ -1635,13 +1632,13 @@ extern "C"
 		string regionCode;
 		string cardVersion;
 
-		if (CardATR.empty())
-		{
-			strcpy(pszRcCode, "0002");
-			RunlogF(pszRcCode);
-			return 1;
-		}
-		m_CardInfo.ATR = CardATR.substr(8, 26);
+//		if (CardATR.empty())
+//		{
+//			strcpy(pszRcCode, "0002");
+//			RunlogF(pszRcCode);
+//			return 1;
+//		}
+        //m_CardInfo.ATR = CardATR.substr(8, 26);
 
         CheckResult(RunApdu("00A40000023F00",msg,false));   // for Henbao Card,must select dir 3F00
 
@@ -3252,6 +3249,10 @@ extern "C"
             else
                 return nResult;
         }
+        else if ((pDest = strstr(pCommand,"WriteCardEx_WenZhou")))
+        {
+
+        }
         else if (0 == strcmp(pCommand,"EvolisStatus"))
         {
             evolis_status_t es;
@@ -3268,6 +3269,22 @@ extern "C"
             return 0;
         }
         return 0;
+    }
+
+    string Evolis_Z390_Printer::GetTlvValue(string strMsg)
+    {
+        char szTemp[1024] = {0};
+        pReader->a_hex((unsigned char*)&strMsg.c_str()[4], (unsigned char*)szTemp, strMsg.length());
+        return szTemp;
+    }
+
+    string Evolis_Z390_Printer::GetTlvString(string strValue,int nSize)
+    {
+        unsigned char szTemp[1024] = {0};
+        pReader->hex_a((unsigned char *)strValue.c_str(), (unsigned char *)szTemp, strValue.length());
+        strValue = (char *)szTemp;
+        int nExpandnum = nSize - strlen((char *)szTemp);//补齐数
+        return((const char *)szTemp + string(nExpandnum, '0'));
     }
 
     bool Evolis_Z390_Printer::ReadFile(std::string fileID,string &msg)
@@ -3713,6 +3730,7 @@ extern "C"
 		//Writelog_C("outbuffer:" + outbuffer, __FUNCTION__, __LINE__);
         return outbuffer;
     }
+
     int Evolis_Z390_Printer::WZ_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode)
     {
         Funclog();
@@ -4032,7 +4050,7 @@ extern "C"
                         RunlogF("Failed in reset card,can't get CardATR.");
                         return 1;
                     }
-                    RFATR = Atr;
+                    RFATR = m_CardInfo.ATR;
                     if (RFATR.empty())
                     {
                         RunlogF("获取ATR失败");
@@ -4068,6 +4086,424 @@ extern "C"
             return 1;
         }
 
+        return 0;
+    }
+
+    int Evolis_Z390_Printer::WZ_CitizenCardExAPDU(std::string Cmd, std::string CmdParam,LPVOID &lpCmdOut, char *pszRcCode)
+    {
+        std::string  msg;
+        std::string  retJSON = "";
+        int index = Cmd.find(':');
+        std::string temp = Cmd.substr(0, index);
+        RunlogF("Cmd = %s",Cmd.c_str());
+        RunlogF("CmdParam = %s",CmdParam.c_str());
+        Cmd = Cmd.substr(index + 1);
+        RunlogF("CmdIndex = %s",Cmd.c_str());
+
+        QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
+        QJsonParseError jsErr;
+        QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+        if (jsdoc.isNull())
+        {
+            RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+            return false;
+        }
+        QJsonObject jsobj = jsdoc.object();
+        //char szErr[1024] = { 0 };
+        //strcpy(cpOutMsg,"Test String");
+        //lpCmdOut = cpOutMsg;
+
+        switch (atoi(Cmd.c_str()))
+        {
+        case 1:
+        {
+            cJSON *root_json = cJSON_CreateObject();
+            root_json = cJSON_CreateObject();//创建项目
+
+            //CheckResult(RunApdu(m_hReader, "00A40000023F00",msg));
+            // 复位以获得ATR
+            ResetCard(pszRcCode);
+            CheckResult(SelectSSSE(msg));
+            CheckResult(SelectDir("EF05",msg));
+            CheckResult(ReadFile("01",msg));
+
+            //msg = "0110330300D15600000501005794E4B2CBAC9000";
+            m_CardInfo.identifyNum = msg.substr(4, msg.length() - 8);
+            m_CardInfo.regionCode = m_CardInfo.identifyNum.substr(0, 6);
+
+            CheckResult(ReadFile("03",msg));      // 获取卡版本号
+            m_CardInfo.cardVersion = GetTlvValue(msg);
+            RunlogF("CardVersion = %s",m_CardInfo.cardVersion.c_str());
+
+            CheckResult(ReadFile("04",msg));      // 获取Initial Organize
+
+            CheckResult(ReadFile("05",msg));      // 获取CardReleaseDate
+            m_CardInfo.cardReleaseDate = GetTlvValue(msg);
+            RunlogF("cardReleaseDate = %s",m_CardInfo.cardReleaseDate.c_str());
+
+            CheckResult(ReadFile("06",msg));      // 获取CardValidDate
+            m_CardInfo.cardValidDate = GetTlvValue(msg);
+            RunlogF("cardValidDate = %s",m_CardInfo.cardValidDate.c_str());
+
+            CheckResult(ReadFile("07",msg));      // 获取CardNumber
+            m_CardInfo.cardNumber = GetTlvValue(msg);
+            RunlogF("cardNumber = %s",m_CardInfo.cardNumber.c_str());
+
+            //四个随机数
+            std::vector<std::string> vRandom;
+            for (int i = 0; i < 4; i++)
+            {
+                //msg = "E1B5773ACE7F699C9000";
+                CheckResult(GetRandom(msg));
+                vRandom.push_back(msg.substr(0, 16));
+            }
+
+            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+            cJSON_AddItemToObject(root_json, "SJS1", cJSON_CreateString(vRandom[0].c_str()));
+            cJSON_AddItemToObject(root_json, "SJS2", cJSON_CreateString(vRandom[1].c_str()));
+            cJSON_AddItemToObject(root_json, "SJS3", cJSON_CreateString(vRandom[3].c_str()));
+            cJSON_AddItemToObject(root_json, "SJS4", cJSON_CreateString(vRandom[2].c_str()));
+            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9013"));
+
+            retJSON = cJSON_PrintUnformatted(root_json);
+            cJSON_Delete(root_json);
+            String2Char(retJSON);
+            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
+            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+        }
+        break;
+        case 2:
+        {
+            std::string	RESULT1 = "",RESULT2 = "";
+            if (!jsobj.contains("RESULT2"))
+            {
+                RunlogF("Can't find 'RESULT2' object!");
+                strcpy(pszRcCode, "0002");
+                return -1;
+            }
+
+            RESULT2 = jsobj.value("RESULT2").toString().toStdString();
+            if (RESULT2.empty())
+            {
+                strcpy(pszRcCode, "0003");
+                RunlogF("RESULT2 can't be empty!");
+                return 1;
+            }
+            RunlogF("RESULT2 = %s",RESULT2.c_str());
+
+            CheckResult(ExternalAuth("0A10",RESULT2,msg));      // 读认证
+
+            CheckResult(ReadFile("07",msg));
+            m_CardInfo.cardNumber = GetTlvValue(msg);
+            RunlogF("Card Number = %s",m_CardInfo.cardNumber.c_str());
+
+            CheckResult(SelectDir("EF06",msg));
+            CheckResult(ReadFile("01",msg));
+            m_CardInfo.cardID = GetTlvValue(msg);
+            RunlogF("CardID = %s",m_CardInfo.cardID.c_str());
+
+            CheckResult(ReadFile("02",msg));
+            m_CardInfo.name = GBK_Utf8(GetTlvValue(msg).c_str());
+            RunlogF("Name = %s",m_CardInfo.name.c_str());
+
+            //checkName(m_CardInfo.cardID, "0", "");
+
+            RunlogF("Region Code = %s",m_CardInfo.regionCode.c_str());
+
+            CheckResult(RunApdu("0084000008",msg));
+            //msg = "E1B5773ACE7F699C9000";
+            string strOData = msg.substr(0, 16);
+            //msg = "13184466C59FB6B49000";
+            CheckResult(RunApdu("0084000008",msg));
+            string strDisFac = msg.substr(0, 16);
+
+            cJSON *root_json = cJSON_CreateObject();
+            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
+            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("0094"));
+            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
+            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
+            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
+
+            retJSON = cJSON_PrintUnformatted(root_json);
+            String2Char(retJSON);
+            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
+            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+            cJSON_Delete(root_json);
+        }
+        break;
+        case 3:
+        {
+            if (!jsobj.contains("RESULT") || !jsobj.contains("PIC"))
+            {
+                RunlogF("Can't find 'RESULT' or 'PIC' object!");
+                strcpy(pszRcCode, "0002");
+                return -1;
+            }
+
+            std::string	RESULT = jsobj.value("RESULT").toString().toStdString();
+            RunlogF("Result = %s",RESULT.c_str());
+            std::string	PIC = jsobj.value("PIC").toString().toStdString();
+            if (RESULT.empty() ||PIC.empty())
+            {
+                RunlogF("RESULT or Pic can't be empty!");
+                strcpy(pszRcCode, "0002");
+                return -1;
+            }
+
+            // 注意：同样的参数，用cjson解析会失败，找不到Result字段，用QJson则不会
+            /*cJSON *json_RESULT = cJSON_GetObjectItem(json, "RESULT");
+            RunlogF("json string = %s.", cJSON_PrintUnformatted(json));
+            if (nullptr == json_RESULT )
+            {
+                RunlogF("Can't find 'RESULT' object!");
+                strlcpy(pszRcCode, "0002",8);
+                return -1;
+            }
+
+            std::string	PIC = "";
+            RESULT = json_RESULT->valuestring;
+            if (RESULT.empty())
+            {
+                strlcpy(pszRcCode, "0002",8);
+                RunlogF("解析RESULT失败:%s",RESULT.c_str());
+                return 1;
+            }
+            RunlogF("Result = %s",RESULT.c_str());
+
+            cJSON *json_PIC = cJSON_GetObjectItem(json, "PIC");
+            if (nullptr == json_PIC)
+            {
+                RunlogF("Can't find 'PIC' object!");
+                strlcpy(pszRcCode, "0002",8);
+                return -1;
+            }
+            PIC = json_PIC->valuestring;
+            if (PIC.empty())
+            {
+                strlcpy(pszRcCode, "0002",8);
+                RunlogF("解析RESULT失败:%s",PIC.c_str());
+                return 1;
+            }*/
+
+            //压缩图片数据
+            std::string strCompressedPic = "";
+            if (CompressPic(PIC, strCompressedPic) != 0)
+            {
+                RunlogF("压缩图片失败:%s");
+                strcpy(pszRcCode, "0005");
+                return 1;
+            }
+
+            CheckResult(ExternalAuth("0410",RESULT,msg));       // 写认证
+            CheckResult(SelectDir("EF08",msg));
+
+            //写入照片数据
+            if(WriteImageInfo(strCompressedPic,pszRcCode) != 0)
+            {
+                return 1;
+            }
+
+            CheckResult(SelectDir("DF01",msg));
+            CheckResult(GetRandom(msg));
+            //msg = "E1B5773ACE7F699C9000";
+            string strOData = msg.substr(0, 16);
+
+            CheckResult(GetRandom(msg));
+            //msg = "13184466C59FB6B49000";
+            string strDisFac = msg.substr(0, 16);
+
+            RunlogF("Try to Create json object!");
+            cJSON *root_json = cJSON_CreateObject();
+            //shared_ptr<cJSON> JsonDestruct(root_json,cJSON_Delete);
+            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.identifyNum.substr(0, 6).c_str()));
+            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("0179"));
+            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
+            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
+            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
+
+            retJSON = cJSON_PrintUnformatted(root_json);
+            String2Char(retJSON);
+            //strcpy(cpOutMsg,"Test String!");
+            lpCmdOut = cpOutMsg;
+            cJSON_Delete(root_json);
+            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+        }
+        break;
+        case 4:
+        {
+            // {"RESULT":"8D1CF983465BB67EAEB20632C4D0F7AD","ADDR":"浙江省温州市龙湾区张家","PHONE":"18888179633"}
+            std::string RANDOM1, RANDOM2;
+            if (!jsobj.contains("RESULT") ||
+                !jsobj.contains("ADDR") ||
+                !jsobj.contains("PHONE") ||
+                !jsobj.contains("ADDRCODE"))
+            {
+                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' object!");
+                strcpy(pszRcCode, "0002");
+                return -1;
+            }
+
+            string strResult     = jsobj.value("RESULT").toString().toStdString();
+            string strAddr       = jsobj.value("ADDR").toString().toStdString();
+            string strAddrCode   = jsobj.value("ADDRCODE").toString().toStdString();
+            string strPhone      = jsobj.value("PHONE").toString().toStdString();
+
+            if (strResult.empty() || strAddr.empty() || strAddrCode.empty() || strPhone.empty())
+            {
+                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' can't be empty!");
+                strcpy(pszRcCode, "0002");
+                return -1;
+            }
+            RunlogF("Result = %s\tAddr = %s\tAddrCode = %s\tPhone = %s",strResult.c_str(),strAddr.c_str(),strAddrCode.c_str(),strPhone.c_str());
+
+            RunlogF("GBK(Addr) = %s",Utf8_GBK(strAddr.c_str()).c_str());
+            CheckResult(ExternalAuth("8610",strResult, msg));       // 写认证
+
+            strAddr = GetTlvString(Utf8_GBK(strAddr.c_str()).c_str(),160);
+
+            strPhone = GetTlvString(strPhone,30);
+
+            CheckResult(SelectDir("EF06",msg));
+            CheckResult(WriteFile("01", "23", strAddr.c_str(),msg));
+            CheckResult(WriteFile("02", "24", strAddrCode,msg));
+            CheckResult(WriteFile("03", "28", strPhone,msg));
+
+            CheckResult(GetRandom(msg));
+            string strOData = msg.substr(0, 16);
+
+            CheckResult(GetRandom(msg));
+            string strDisFac = msg.substr(0, 16);
+
+            cJSON *root_json = cJSON_CreateObject();
+            //shared_ptr<cJSON> JsonDestruct(root_json,cJSON_Delete);
+            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
+            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("009A"));
+            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
+            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
+            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
+
+            retJSON = cJSON_PrintUnformatted(root_json);
+            cJSON_Delete(root_json);
+            String2Char(retJSON);
+            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
+            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+        }
+        break;
+        case 5:
+        {
+            std::string	RESULT = "", ORGCODE = "";
+            if (!jsobj.contains("RESULT") ||
+                !jsobj.contains("ORGCODE"))
+            {
+                RunlogF("Can't find 'RESULT' or 'ORGCODE' object!");
+                strcpy(pszRcCode, "0002");
+                return -1;
+            }
+            RESULT = jsobj.value("RESULT").toString().toStdString();
+            ORGCODE = jsobj.value("ORGCODE").toString().toStdString();
+
+            if (RESULT.empty())
+            {
+                strcpy(pszRcCode, "0002");
+                RunlogF("'RESULT' can't be empty!");
+                return 1;
+            }
+
+            RunlogF("RESULT = %s\tORGCODE = %s",RESULT.c_str(),ORGCODE.c_str());
+
+            CheckResult(ExternalAuth("8410", RESULT,msg));      // 写入认证
+
+            CheckResult(SelectDir("EF09",msg));
+
+            ORGCODE = GetTlvString(ORGCODE,18);
+
+            CheckResult(WriteFile("02", "30", ORGCODE, msg));
+
+            CheckResult(GetRandom(msg));
+            string strOData = msg.substr(0, 16);
+
+            CheckResult(GetRandom(msg));
+            string strDisFac = msg.substr(0, 16);
+
+            cJSON *root_json = cJSON_CreateObject();
+            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
+            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
+            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
+            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
+            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
+            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("009D"));
+            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
+            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
+            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
+
+            retJSON = cJSON_PrintUnformatted(root_json);
+            String2Char(retJSON);
+            cJSON_Delete(root_json);
+            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
+            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
+        }
+        break;
+        case 6:
+        {
+            std::string	RESULT = "", COUNTRY = "";
+            if (!jsobj.contains("RESULT") ||
+                !jsobj.contains("COUNTRY"))
+            {
+                RunlogF("Can't find 'RESULT' or 'COUNTRY' object!");
+                strcpy(pszRcCode, "0002");
+                return -1;
+            }
+            RESULT = jsobj.value("RESULT").toString().toStdString();
+            COUNTRY = jsobj.value("COUNTRY").toString().toStdString();
+
+            if (RESULT.empty() )
+            {
+                strcpy(pszRcCode, "0002");
+                RunlogF("'RESULT' can't be empty!");
+                return 1;
+            }
+            RunlogF("RESULT = %s\tORGCODE = %s",RESULT.c_str(),COUNTRY.c_str());
+            CheckResult(ExternalAuth("8710", RESULT,msg));
+            CheckResult(SelectDir("EF0A",msg));
+
+            COUNTRY = GetTlvString(COUNTRY,6);
+
+            CheckResult(WriteFile("01", "37", COUNTRY, msg));
+        }
+        break;
+        default:
+        {
+            RunlogF("未知的命令: %s", Cmd.c_str());
+            strcpy(pszRcCode, "0100");
+            return 1;
+        }
+        break;
+        }
+
+        strcpy(pszRcCode, "0000");
         return 0;
     }
 
@@ -5182,431 +5618,128 @@ extern "C"
 
         return 0;
     }
+    int Evolis_Z390_Printer::CompressPic(std::string inPic, std::string & outPic)
+    {
+        QByteArray baPic = QByteArray::fromBase64(inPic.c_str());
+        outPic = string((char*)baPic.data(), baPic.size());
+        static const char *szCompressedFileName = "/sdcard/Z390/CompressedPhoto.jpg";
+        static const char *szSourceFileName = "/sdcard/Z390/SourcePhoto.jpg";
+        QFileInfo fi(szCompressedFileName);
+        if (fi.isFile())
+        {
+            RunlogF("%s already exist,now remove it!",szCompressedFileName);
+            QFile::remove(szCompressedFileName);
+        }
+        QFileInfo fi2(szSourceFileName);
+        if (fi2.isFile())
+        {
+            RunlogF("%s already exist,now remove it!",szSourceFileName);
+            QFile::remove(szSourceFileName);
+        }
 
-//    int Evolis_Z390_Printer::WZ_CitizenCardExAPDU(std::string Cmd, std::string CmdParam,LPVOID &lpCmdOut, char *pszRcCode)
-//    {
-//        //RecFunc();
+        QFile fout(szSourceFileName);
+        fout.open(QIODevice::ReadWrite);
+        fout.write(outPic.c_str(), outPic.size());
+        fout.close();
+        if (outPic.size() > (size_t)PhotoCompressParam.nSize)
+        {
+            RunlogF("Now Try to compress file:%s",szCompressedFileName);
+            if (!CompressPicture(szSourceFileName, szCompressedFileName))
+            {
+                RunlogF("Failed in compress file:%s",szCompressedFileName);
+                return 1;
+            }
+        }
+        else
+        {
+            RunlogF("The size of input picture is less than 7K,skip compressing!");
+        }
 
-//        std::string  msg;
-//        std::string  retJSON = "";
-//        int index = Cmd.find(':');
-//        std::string temp = Cmd.substr(0, index);
-//        RunlogF("Cmd = %s",Cmd.c_str());
-//        RunlogF("CmdParam = %s",CmdParam.c_str());
-//        Cmd = Cmd.substr(index + 1);
-//        RunlogF("CmdIndex = %s",Cmd.c_str());
+        RunlogF("Try to read file %s!",szCompressedFileName);
+        QFile fin(szCompressedFileName);
+        fin.open(QIODevice::ReadOnly);
+        QByteArray byBuffer = fin.readAll();
+        //QByteArray byBase64 = byBuffer.toBase64();
+        //RunlogF("PIC Base64:%s",byBase64.data());
+        outPic = string(byBuffer.data(), byBuffer.size());
+        return 0;
+    }
 
-//        QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
-//        QJsonParseError jsErr;
-//        QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
-//        if (jsdoc.isNull())
-//        {
-//            RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
-//            return false;
-//        }
-//        QJsonObject jsobj = jsdoc.object();
-//        char szErr[1024] = { 0 };
-//        //strcpy(cpOutMsg,"Test String");
-//        //lpCmdOut = cpOutMsg;
+    int Evolis_Z390_Printer::WriteImageInfo(std::string &strPic, char *pszRcCode)
+    {
+        size_t nHexDataLen = strPic.size() *2;
+        string strBuff(nHexDataLen,0);
+        unsigned char *pHexData = (unsigned char *)strBuff.data();
+        pReader->hex_a((unsigned char *)strPic.c_str(),pHexData,strPic.size());
+        //char szSlice[512] = { 0 };
+        char szOffset[16] = {0};
+        char szSliceSize[16] = {0};
+        RunlogF("Try to write picture.");
+        int nSliceSize = 510;
+        for (size_t i = 0; i < nHexDataLen; i+= 510)	//循环分段写入数据
+        {
+            if((i + 510 )>= nHexDataLen)
+                nSliceSize = nHexDataLen - i;
 
-//        switch (atoi(Cmd.c_str()))
-//        {
-//        case 1:
-//        {
-//            //RecFunc();
-//            cJSON *root_json = cJSON_CreateObject();
-//            root_json = cJSON_CreateObject();//创建项目
+            snprintf(szOffset,16,"%04X",i/2);
+            snprintf(szSliceSize,16,"%02X",nSliceSize/2);
+            //写入数据 00D6 + 起始位置(十六进制) + 写入片段长度(十六进制) + 写入片段
+            string strCmd = "00D6";
+            strCmd += szOffset;
+            strCmd += szSliceSize;
+            strCmd += strBuff.substr(i,nSliceSize);
+            string msg;
+            //RunlogF("strCmd = %s",strCmd.c_str());
+            CheckResult(RunApdu(strCmd,msg));
+        }
+        RunlogF("Picture wrote succeed!");
+        return 0;
+    }
 
-//            //CheckResult(RunApdu(m_hReader, "00A40000023F00",msg));
-//            // 复位以获得ATR
-//            ResetCard(pszRcCode);
-//            CheckResult(SelectSSSE(msg));
-//            CheckResult(SelectDir("EF05",msg));
-//            CheckResult(ReadFile("01",msg));
+    bool Evolis_Z390_Printer::CompressPicture(std::string strSource,string strDest, int nZoomPercent)
+    {
+        cv::Mat img = cv::imread(strSource);
+        if (!img.data)
+        {
+            RunlogF("invalid image!");
+            return false;
+        }
+        int width = img.cols;
+        int height = img.rows;
+        RunlogF("Image Width = %d,Height = %d.",width,height);
 
-//            //msg = "0110330300D15600000501005794E4B2CBAC9000";
-//            m_CardInfo.identifyNum = msg.substr(4, msg.length() - 8);
-//            m_CardInfo.regionCode = m_CardInfo.identifyNum.substr(0, 6);
+        int  nCompressRate = 90;
+        int  nDestWidth = PhotoCompressParam.nWidth;
+        int  nDestHeight= PhotoCompressParam.nHeight;
+        //double ratio = nZoomPercent / 100.0f;
+        //int  nDestHeight = height * ratio;
+        //int  nDestWidth = width * ratio;
+        do
+        {
+            if (nCompressRate == 0)
+                break;
+            RunlogF("Try to compress pic with rate:%d%%!", nCompressRate);
+            cv::resize(img, img, cv::Size(nDestWidth, nDestHeight));
+            cv::imwrite(strDest, img, { IMWRITE_JPEG_QUALITY, nCompressRate });
 
-//            CheckResult(ReadFile("03",msg));      // 获取卡版本号
-//            m_CardInfo.cardVersion = GetTlvValue(msg);
-//            RunlogF("CardVersion = %s",m_CardInfo.cardVersion.c_str());
-
-//            CheckResult(ReadFile("04",msg));      // 获取Initial Organize
-
-//            CheckResult(ReadFile("05",msg));      // 获取CardReleaseDate
-//            m_CardInfo.cardReleaseDate = GetTlvValue(msg);
-//            RunlogF("cardReleaseDate = %s",m_CardInfo.cardReleaseDate.c_str());
-
-//            CheckResult(ReadFile("06",msg));      // 获取CardValidDate
-//            m_CardInfo.cardValidDate = GetTlvValue(msg);
-//            RunlogF("cardValidDate = %s",m_CardInfo.cardValidDate.c_str());
-
-//            CheckResult(ReadFile("07",msg));      // 获取CardNumber
-//            m_CardInfo.cardNumber = GetTlvValue(msg);
-//            RunlogF("cardNumber = %s",m_CardInfo.cardNumber.c_str());
-
-//            //四个随机数
-//            std::vector<std::string> vRandom;
-//            for (int i = 0; i < 4; i++)
-//            {
-//                //msg = "E1B5773ACE7F699C9000";
-//                CheckResult(GetRandom(msg));
-//                vRandom.push_back(msg.substr(0, 16));
-//            }
-
-//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
-//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
-//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
-//            cJSON_AddItemToObject(root_json, "SJS1", cJSON_CreateString(vRandom[0].c_str()));
-//            cJSON_AddItemToObject(root_json, "SJS2", cJSON_CreateString(vRandom[1].c_str()));
-//            cJSON_AddItemToObject(root_json, "SJS3", cJSON_CreateString(vRandom[3].c_str()));
-//            cJSON_AddItemToObject(root_json, "SJS4", cJSON_CreateString(vRandom[2].c_str()));
-//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9013"));
-
-//            retJSON = cJSON_PrintUnformatted(root_json);
-//            cJSON_Delete(root_json);
-//            String2Char(retJSON);
-//            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
-//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
-//        }
-//        break;
-//        case 2:
-//        {
-//            RecFunc();
-//            std::string	RESULT1 = "",RESULT2 = "";
-//            if (!jsobj.contains("RESULT2"))
-//            {
-//                RunlogF("Can't find 'RESULT2' object!");
-//                strcpy(pszRcCode, "0002");
-//                return -1;
-//            }
-
-//            RESULT2 = jsobj.value("RESULT2").toString().toStdString();
-//            if (RESULT2.empty())
-//            {
-//                strcpy(pszRcCode, "0003");
-//                RunlogF("RESULT2 can't be empty!");
-//                return 1;
-//            }
-//            RunlogF("RESULT2 = %s",RESULT2.c_str());
-
-//            CheckResult(ExternalAuth("0A10",RESULT2,msg));      // 读认证
-
-//            CheckResult(ReadFile("07",msg));
-//            m_CardInfo.cardNumber = GetTlvValue(msg);
-//            RunlogF("Card Number = %s",m_CardInfo.cardNumber.c_str());
-
-//            CheckResult(SelectDir("EF06",msg));
-//            CheckResult(ReadFile("01",msg));
-//            m_CardInfo.cardID = GetTlvValue(msg);
-//            RunlogF("CardID = %s",m_CardInfo.cardID.c_str());
-
-//            CheckResult(ReadFile("02",msg));
-//            m_CardInfo.name = GBK_UTF8(GetTlvValue(msg).c_str());
-//            RunlogF("Name = %s",m_CardInfo.name.c_str());
-
-//            //checkName(m_CardInfo.cardID, "0", "");
-
-//            RunlogF("Region Code = %s",m_CardInfo.regionCode.c_str());
-
-//            CheckResult(RunApdu("0084000008",msg));
-//            //msg = "E1B5773ACE7F699C9000";
-//            string strOData = msg.substr(0, 16);
-//            //msg = "13184466C59FB6B49000";
-//            CheckResult(RunApdu( "0084000008",msg));
-//            string strDisFac = msg.substr(0, 16);
-
-//            cJSON *root_json = cJSON_CreateObject();
-//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
-//            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
-//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
-//            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("0094"));
-//            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
-//            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
-//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
-
-//            retJSON = cJSON_PrintUnformatted(root_json);
-//            String2Char(retJSON);
-//            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
-//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
-//            cJSON_Delete(root_json);
-//        }
-//        break;
-//        case 3:
-//        {
-//            //RecFunc();
-//            if (!jsobj.contains("RESULT") || !jsobj.contains("PIC"))
-//            {
-//                RunlogF("Can't find 'RESULT' or 'PIC' object!");
-//                strcpy(pszRcCode, "0002");
-//                return -1;
-//            }
-
-//            std::string	RESULT = jsobj.value("RESULT").toString().toStdString();
-//            RunlogF("Result = %s",RESULT.c_str());
-//            std::string	PIC = jsobj.value("PIC").toString().toStdString();
-//            if (RESULT.empty() ||PIC.empty())
-//            {
-//                RunlogF("RESULT or Pic can't be empty!");
-//                strcpy(pszRcCode, "0002");
-//                return -1;
-//            }
-
-//            // 注意：同样的参数，用cjson解析会失败，找不到Result字段，用QJson则不会
-//            /*cJSON *json_RESULT = cJSON_GetObjectItem(json, "RESULT");
-//            RunlogF("json string = %s.", cJSON_PrintUnformatted(json));
-//            if (nullptr == json_RESULT )
-//            {
-//                RunlogF("Can't find 'RESULT' object!");
-//                strcpy(pszRcCode, "0002");
-//                return -1;
-//            }
-
-//            std::string	PIC = "";
-//            RESULT = json_RESULT->valuestring;
-//            if (RESULT.empty())
-//            {
-//                strcpy(pszRcCode, "0002");
-//                RunlogF("解析RESULT失败:%s",RESULT.c_str());
-//                return 1;
-//            }
-//            RunlogF("Result = %s",RESULT.c_str());
-
-//            cJSON *json_PIC = cJSON_GetObjectItem(json, "PIC");
-//            if (nullptr == json_PIC)
-//            {
-//                RunlogF("Can't find 'PIC' object!");
-//                strcpy(pszRcCode, "0002");
-//                return -1;
-//            }
-//            PIC = json_PIC->valuestring;
-//            if (PIC.empty())
-//            {
-//                strcpy(pszRcCode, "0002");
-//                RunlogF("解析RESULT失败:%s",PIC.c_str());
-//                return 1;
-//            }*/
-
-//            //压缩图片数据
-//            std::string strCompressedPic = "";
-//            if (CompressPic(PIC, strCompressedPic) != 0)
-//            {
-//                RunlogF("压缩图片失败:%s");
-//                strcpy(pszRcCode, "0005");
-//                return 1;
-//            }
-
-//            CheckResult(ExternalAuth("0410",RESULT,msg));       // 写认证
-//            CheckResult(SelectDir("EF08",msg));
-
-//            //写入照片数据
-//            if(WriteImageInfo(strCompressedPic,szErr) != 0)
-//            {
-//                strcpy(pszRcCode, szErr);
-//                return 1;
-//            }
-
-//            CheckResult(SelectDir("DF01",msg));
-//            CheckResult(GetRandom(msg));
-//            //msg = "E1B5773ACE7F699C9000";
-//            string strOData = msg.substr(0, 16);
-
-//            CheckResult(GetRandom(msg));
-//            //msg = "13184466C59FB6B49000";
-//            string strDisFac = msg.substr(0, 16);
-
-//            RunlogF("Try to Create json object!");
-//            cJSON *root_json = cJSON_CreateObject();
-//            //shared_ptr<cJSON> JsonDestruct(root_json,cJSON_Delete);
-//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.identifyNum.substr(0, 6).c_str()));
-//            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
-//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
-//            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("0179"));
-//            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
-//            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
-//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
-
-//            retJSON = cJSON_PrintUnformatted(root_json);
-//            String2Char(retJSON);
-//            //strcpy(cpOutMsg,"Test String!");
-//            lpCmdOut = cpOutMsg;
-//            cJSON_Delete(root_json);
-//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
-//        }
-//        break;
-//        case 4:
-//        {
-//            RecFunc();
-//            // {"RESULT":"8D1CF983465BB67EAEB20632C4D0F7AD","ADDR":"浙江省温州市龙湾区张家","PHONE":"18888179633"}
-//            std::string RANDOM1, RANDOM2;
-//            if (!jsobj.contains("RESULT") ||
-//                !jsobj.contains("ADDR") ||
-//                !jsobj.contains("PHONE") ||
-//                !jsobj.contains("ADDRCODE"))
-//            {
-//                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' object!");
-//                strcpy(pszRcCode, "0002");
-//                return -1;
-//            }
-
-//            string strResult     = jsobj.value("RESULT").toString().toStdString();
-//            string strAddr       = jsobj.value("ADDR").toString().toStdString();
-//            string strAddrCode   = jsobj.value("ADDRCODE").toString().toStdString();
-//            string strPhone      = jsobj.value("PHONE").toString().toStdString();
-
-//            if (strResult.empty() || strAddr.empty() || strAddrCode.empty() || strPhone.empty())
-//            {
-//                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' can't be empty!");
-//                strcpy(pszRcCode, "0002");
-//                return -1;
-//            }
-//            RunlogF("Result = %s\tAddr = %s\tAddrCode = %s\tPhone = %s",strResult.c_str(),strAddr.c_str(),strAddrCode.c_str(),strPhone.c_str());
-
-//            RunlogF("GBK(Addr) = %s",UTF8_GBK(strAddr.c_str()).c_str());
-//            CheckResult(ExternalAuth("8610",strResult, msg));       // 写认证
-
-//            strAddr = GetTlvString(UTF8_GBK(strAddr.c_str()).c_str(),160);
-
-//            strPhone = GetTlvString(strPhone,30);
-
-//            CheckResult(SelectDir("EF06",msg));
-//            CheckResult(WriteFile("01", "23", strAddr.c_str(),msg));
-//            CheckResult(WriteFile("02", "24", strAddrCode,msg));
-//            CheckResult(WriteFile("03", "28", strPhone,msg));
-
-//            CheckResult(GetRandom(msg));
-//            string strOData = msg.substr(0, 16);
-
-//            CheckResult(GetRandom(msg));
-//            string strDisFac = msg.substr(0, 16);
-
-//            cJSON *root_json = cJSON_CreateObject();
-//            //shared_ptr<cJSON> JsonDestruct(root_json,cJSON_Delete);
-//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
-//            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
-//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
-//            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("009A"));
-//            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
-//            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
-//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
-
-//            retJSON = cJSON_PrintUnformatted(root_json);
-//            cJSON_Delete(root_json);
-//            String2Char(retJSON);
-//            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
-//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
-//        }
-//        break;
-//        case 5:
-//        {
-//            std::string	RESULT = "", ORGCODE = "";
-//            if (!jsobj.contains("RESULT") ||
-//                !jsobj.contains("ORGCODE"))
-//            {
-//                RunlogF("Can't find 'RESULT' or 'ORGCODE' object!");
-//                strcpy(pszRcCode, "0002");
-//                return -1;
-//            }
-//            RESULT = jsobj.value("RESULT").toString().toStdString();
-//            ORGCODE = jsobj.value("ORGCODE").toString().toStdString();
-
-//            if (RESULT.empty())
-//            {
-//                strcpy(pszRcCode, "0002");
-//                RunlogF("'RESULT' can't be empty!");
-//                return 1;
-//            }
-
-//            RunlogF("RESULT = %s\tORGCODE = %s",RESULT.c_str(),ORGCODE.c_str());
-
-//            CheckResult(ExternalAuth("8410", RESULT,msg));      // 写入认证
-
-//            CheckResult(SelectDir("EF09",msg));
-
-//            ORGCODE = GetTlvString(ORGCODE,18);
-
-//            CheckResult(WriteFile("02", "30", ORGCODE, msg));
-
-//            CheckResult(GetRandom(msg));
-//            string strOData = msg.substr(0, 16);
-
-//            CheckResult(GetRandom(msg));
-//            string strDisFac = msg.substr(0, 16);
-
-//            cJSON *root_json = cJSON_CreateObject();
-//            cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
-//            cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ500", cJSON_CreateString(m_CardInfo.cardNumber.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ501", cJSON_CreateString(m_CardInfo.identifyNum.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAC003", cJSON_CreateString(m_CardInfo.name.c_str()));
-//            cJSON_AddItemToObject(root_json, "AAZ507", cJSON_CreateString(m_CardInfo.ATR.c_str()));
-//            cJSON_AddItemToObject(root_json, "AFLAG", cJSON_CreateString("03"));
-//            cJSON_AddItemToObject(root_json, "KEYADD", cJSON_CreateString("009D"));
-//            cJSON_AddItemToObject(root_json, "KEYFAC", cJSON_CreateString(strDisFac.c_str()));
-//            cJSON_AddItemToObject(root_json, "ODATA", cJSON_CreateString(strOData.c_str()));
-//            cJSON_AddItemToObject(root_json, "MSGNO", cJSON_CreateString("9011"));
-
-//            retJSON = cJSON_PrintUnformatted(root_json);
-//            String2Char(retJSON);
-//            cJSON_Delete(root_json);
-//            lpCmdOut = cpOutMsg;// (LPVOID)retMsg.c_str();
-//            RunlogF("lpCmdout = %s.",(char*)lpCmdOut);
-//        }
-//        break;
-//        case 6:
-//        {
-//            RecFunc();
-//            std::string	RESULT = "", COUNTRY = "";
-//            if (!jsobj.contains("RESULT") ||
-//                !jsobj.contains("COUNTRY"))
-//            {
-//                RunlogF("Can't find 'RESULT' or 'COUNTRY' object!");
-//                strcpy(pszRcCode, "0002");
-//                return -1;
-//            }
-//            RESULT = jsobj.value("RESULT").toString().toStdString();
-//            COUNTRY = jsobj.value("COUNTRY").toString().toStdString();
-
-//            if (RESULT.empty() )
-//            {
-//                strcpy(pszRcCode, "0002");
-//                RunlogF("'RESULT' can't be empty!");
-//                return 1;
-//            }
-//            RunlogF("RESULT = %s\tORGCODE = %s",RESULT.c_str(),COUNTRY.c_str());
-//            CheckResult(ExternalAuth("8710", RESULT,msg));
-//            CheckResult(SelectDir("EF0A",msg));
-
-//            COUNTRY = GetTlvString(COUNTRY,6);
-
-//            CheckResult(WriteFile( "01", "37", COUNTRY, msg));
-//        }
-//        break;
-//        default:
-//        {
-//            RunlogF("未知的命令: %s", Cmd.c_str());
-//            strcpy(pszRcCode, "0100");
-//            return 1;
-//        }
-//        break;
-//        }
-
-//        strcpy(pszRcCode, "0000");
-//        return 0;
-//    }
+            QFileInfo fi(strDest.c_str());
+            if (fi.size() <= PhotoCompressParam.nSize)
+            {
+                RunlogF("compress rate = %d%%,File size = %d,", nCompressRate, fi.size());
+                break;
+            }
+            else
+            {
+                int nNewRate = nCompressRate - 5;
+                RunlogF("compress rate = %d%%,File size = %d,over size!try to decrease compress rate to %d%%", nCompressRate, fi.size(), nNewRate);
+                nCompressRate -= 5;
+                continue;
+            }
+        } while (true);
+        RunlogF("Compress finished!");
+        if (nCompressRate == 0)
+            return false;
+        return true;
+    }
 };
 

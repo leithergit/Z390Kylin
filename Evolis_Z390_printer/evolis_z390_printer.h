@@ -317,6 +317,8 @@ public:
         /************************************************************************/
         int WZ_CitizenCardAPDU(std::string Cmd, std::string CmdParam, char *pszRcCode);
 
+        int WZ_CitizenCardExAPDU(std::string Cmd, std::string CmdParam,LPVOID &lpCmdOut, char *pszRcCode);
+
         /************************************************************************/
         /* 温州市扩展信息                                                         */
         /************************************************************************/
@@ -356,6 +358,10 @@ public:
 
         int ResetCard(char * pszRCode);
 
+        string GetTlvValue(string strMsg);
+
+        string GetTlvString(string strValue,int nSize);
+
         bool ReadFile(string fileID,string &strOutMsg);
 
         bool WriteFile(string fileID, string tag, string val, string &strOutmsg);
@@ -391,7 +397,11 @@ public:
             }
             return len;
         }
+        int CompressPic(std::string inPic, std::string & outPic);
 
+        int WriteImageInfo(std::string &strPic, char *pszRcCode);
+
+        bool CompressPicture(std::string strSource,string strDest, int nZoomPercent = 60);
         const char* getPlatformABI();
 
         /**
@@ -487,7 +497,7 @@ private:
     volatile bool bThreadRun;
     QEvolisPrinter  *pEvolisPriner = nullptr;
     ReaderPtr   pReader = nullptr;
-
+    PhotoCompressParameters PhotoCompressParam;
 };
 
 int Bin2Hexstring(unsigned char* pHex, int nHexLen, CHAR* szAscString, int nBuffLen);

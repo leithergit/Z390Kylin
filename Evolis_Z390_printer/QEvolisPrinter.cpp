@@ -16,6 +16,8 @@
 #include <fstream>
 #include <sstream>
 #include <turbojpeg.h>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include "SimpleIni.h"
 #include "QEvolisPrinter.h"
 #include "AES.h"
@@ -80,8 +82,6 @@ unsigned char g_szAesKey[] =  {0x9d,0x06,0x93,0xce,0x80,0x8e,0x37,0xeb,0xd7,0xee
 unsigned char g_szZoneKey1[16] =  {0x47,0x66,0xf2,0x21,0x79,0x07,0x4f,0xb7,0x28,0x3f,0x6f,0x3a,0x6d,0x17,0xa6,0xc0};
 // 区码F61A的密文
 unsigned char g_szZoneKey2[16] =  {0x99,0xf4,0xb4,0x85,0xb1,0x10,0xdf,0x75,0x1c,0xec,0xff,0xc8,0xa8,0x15,0xf7,0x38};
-
-
 
 #define RunlogF(...)    Runlog(__PRETTY_FUNCTION__,__LINE__,__VA_ARGS__);
 #define Funclog()       //FnTime fTime(__PRETTY_FUNCTION__);*FuncRunlog(__PRETTY_FUNCTION__,__LINE__);  TraceFunction TF(__PRETTY_FUNCTION__,__LINE__);//auto threadID = std::this_thread::get_id();RunlogF("####Current ThreadID:%08x####\n",threadID);
@@ -583,6 +583,97 @@ int  SaveMonoImage(const  cv::Mat imgRGB, std::string dst)
 bool QEvolisPrinter::LoadFontFromResources()
 {
     return loadFontFamilyFromFiles(":/SIMSUN.ttf",strFontSimsun);
+}
+
+int _PhotoCompressParameters::Parser(string strJson,bool bInput)
+{
+    int nResult = -1;
+    do
+    {
+        QByteArray baJson(strJson.c_str(), strJson.size());
+        QJsonParseError jsErr;
+        QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+        if (jsdoc.isNull())
+        {
+            RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+            break;
+        }
+        QJsonObject jsobj = jsdoc.object();
+        if (!jsobj.contains("Width"))
+        {
+            RunlogF("Can't find 'Width' in %s!",strJsonFile.c_str());
+            break;
+        }
+        if (!jsobj.contains("Height"))
+        {
+            RunlogF("Can't find 'Height' in %s!",strJsonFile.c_str());
+            break;
+        }
+        if (!jsobj.contains("Size"))
+        {
+            RunlogF("Can't find 'Size' in %s!",strJsonFile.c_str());
+            break;
+        }
+        nWidth = jsobj.value("Width").toInt();
+        nHeight = jsobj.value("Height").toInt();
+        nSize = jsobj.value("Size").toInt();
+        if (bInput)
+            Save(strJson);
+        nResult = 0;
+    }while (0);
+    return nResult;
+}
+
+int _PhotoCompressParameters::Save(string &strJson)
+{
+//    try
+//    {
+        QFileInfo fi(strJsonFile.c_str());
+        if (fi.isFile())
+            QFile::remove(strJsonFile.c_str());
+        QFile qFile(strJsonFile.c_str());
+        if (!qFile.open(QIODevice::WriteOnly|QIODevice::Text))
+        {
+             RunlogF("Failed in open file %s.",strJsonFile.c_str());
+             return -1;
+        }
+        RunlogF("Try to Save PhotoCompressParameters to file %s.",strJsonFile.c_str());
+        qFile.write(strJson.c_str(),strJson.size());
+        qFile.close();
+        return 0;
+//    }
+//    catch (std::exception &e)
+//    {
+//        RunlogF("Catch a exception:%s", e.what());
+//    }
+}
+
+_PhotoCompressParameters::_PhotoCompressParameters() noexcept
+{
+    nWidth = 150;
+    nHeight = 180;
+    nSize = 4096;
+
+    try
+    {
+        strJsonFile = "/sdcard/Z390/PhotoCompressParameters.json";
+        QFileInfo PhotoParam(strJsonFile.c_str());
+        if (PhotoParam.isFile())
+        {
+            ifstream ifs(strJsonFile,ios::binary|ios::in);
+            stringstream ss;
+            ss << ifs.rdbuf();
+            if (!Parser(ss.str()))
+            {
+                return ;
+            }
+            RunlogF("Width = %d\tHeight = %d\tSize = %d.", nWidth,nHeight,nSize);
+        }
+    }
+    catch (std::exception& e)
+    {
+        RunlogF("Catch a exception:%s.", e.what());
+    }
 }
 
 QEvolisPrinter::QEvolisPrinter()
@@ -1483,7 +1574,7 @@ int  QEvolisPrinter::EnableCard(long lTimeout, int nCheckable, char *pszRcCode)
     char RespValue[1024];
     memset(RespValue, 0x00, 1024);
     const char *szCommand[]={
-                         "Psmgr;2",     // 防止进卡和出卡阻塞
+                         //"Psmgr;2",     // 防止进卡和出卡阻塞
                          "Pcim;I;S",    // 从卡箱进卡,并移动到接触位
                          "Pcem;I",      // 从出卡口出卡
                          //"Pneab;E"    // 打印结束后不出卡
@@ -2848,6 +2939,7 @@ int QEvolisPrinter::Cv_PrintCard(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVe
         RunlogF("Failed in GetRibbonStatus.\n");
         return 1;
     }
+
     auto tDeration = duration_cast<milliseconds>(high_resolution_clock::now() - tLast);
     RunlogF("print duration:%d ms.",tDeration.count());
     return 0;
