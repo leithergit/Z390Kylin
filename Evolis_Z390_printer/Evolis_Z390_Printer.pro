@@ -1,4 +1,4 @@
-QT +=  core
+QT +=  core gui
 
 TEMPLATE = lib
 DEFINES += EVOLIS_Z390_LITHOGRAPHPRINTER_LIBRARY\
@@ -20,7 +20,10 @@ SOURCES += \
     tinyxml/tinyxml.cpp \
     tinyxml/tinyxmlerror.cpp \
     tinyxml/tinyxmlparser.cpp \
-    readerbase.cpp
+    readerbase.cpp \
+    ConvertUTF.c \
+    json/cJSON.c \
+    json/CJsonObject.cpp
 
 HEADERS += \
     AES.h \
@@ -36,7 +39,11 @@ HEADERS += \
     dynamiclib.h \
     readerbase.h \
     readerMinhua.h \
-    readerdecard.h
+    readerdecard.h \
+    dynamiclib.h \
+    ConvertUTF.h \
+    json/cJSON.h \
+    json/CJsonObject.hpp
 
 
 # Default rules for deployment.
@@ -63,7 +70,12 @@ QMAKE_CXXFLAGS += -Wno-unused-variable
 
 INCLUDEPATH += $$PWD/../3rdparty
 DEPENDPATH += $$PWD/../3rdparty
+unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lopencv_world
 
+INCLUDEPATH += $$PWD/../3rdparty
+DEPENDPATH += $$PWD/../3rdparty
+
+unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libopencv_world.a
 #unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lfreetype
 #unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libfreetype.a
 
@@ -85,12 +97,7 @@ DEPENDPATH += $$PWD/../3rdparty
 #unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libopencv_photo.a
 
 
-unix:!macx: LIBS += -L$$PWD/../3rdparty/lib/ -lopencv_world
 
-INCLUDEPATH += $$PWD/../3rdparty
-DEPENDPATH += $$PWD/../3rdparty
-
-unix:!macx: PRE_TARGETDEPS += $$PWD/../3rdparty/lib/libopencv_world.a
 
 
 unix:!macx: LIBS += -L$$PWD/../3rdparty/libturbojpeg/ -lturbojpeg

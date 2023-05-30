@@ -15,6 +15,12 @@
 #include <QApplication>
 #include <thread>
 #include <chrono>
+#include <opencv2/opencv.hpp>
+#include <opencv2/freetype.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc/imgproc_c.h>
+using namespace  cv;
 using namespace std;
 
 class QWaitCursor

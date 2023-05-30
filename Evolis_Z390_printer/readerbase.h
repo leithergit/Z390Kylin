@@ -63,15 +63,19 @@ public:
     virtual int  GetErrorMsg(std::string &strErrorMsg) = 0;
 
     // binary to hex string
-    short hex_a(unsigned char *szHex,unsigned char *szAsc,short nInputLen)
+    short hex_a(unsigned char *szHex,unsigned char *szAsc,short nInputLen,short nOutputLen = 0)
     {
-        return Binary2Hexstring(szHex,nInputLen, szAsc,1024,0);
+        if (!nOutputLen)
+            nOutputLen = nInputLen*2;
+        return Binary2Hexstring(szHex,nInputLen, szAsc,nOutputLen,0);
     }
 
     // hex string to binary
-    short a_hex(unsigned char* szAsc,unsigned char *szHex,short nInputLen)
+    short a_hex(unsigned char* szAsc,unsigned char *szHex,short nInputLen,short nOutputLen = 0)
     {
-        return HexString2Binary(szAsc,nInputLen,szHex,1024,0);
+        if (!nOutputLen)
+            nOutputLen = nInputLen/2;
+        return HexString2Binary(szAsc,nInputLen,szHex,nOutputLen,0);
     }
 };
 

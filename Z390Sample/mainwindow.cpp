@@ -61,6 +61,80 @@ string Utf8_GBK(const char *inbuf)
     return strRet;
 }
 
+
+//把a转换为Hex字符
+#define TOHEXA(a, b) {*b++ = chHexTableA[a >> 4]; *b++ = chHexTableA[a & 0xf];}
+/*
+ 功能描述		内存数据转换为16进制ASCII字符串
+ pHex			输入数据流
+ nHexLen		输入数据流长度
+ szAscString	输出16进制ASCII字符串缓冲区
+ nBuffLen		输出缓冲区最大长度
+ 返回值		<0时 输入参数不合法
+                >0 返回转换后的ASCII符串的长度
+*/
+int Binary2Hexstring(unsigned char *pBinary,int nHexLen, unsigned char *szHexString,int nBuffLen,CHAR chSeperator)
+{
+    static const  char chHexTableA[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+    if (!pBinary ||
+        !szHexString||
+        !nBuffLen)
+        return -1;
+    unsigned char nMult = 3;
+    if (chSeperator == '\0')
+        nMult = 2;
+    if (nHexLen*nMult > nBuffLen)
+        return -1;
+    unsigned char *p = &szHexString[0];
+
+    int n;
+    for (n = 0; n < nHexLen ; n++)
+    {
+        TOHEXA(pBinary[n], p);
+        if (nMult == 2)
+            continue;
+        *p++ = chSeperator;
+    }
+    return n*nMult;
+}
+
+#define		Char2DigitA(ch)	(ch > '9'?(ch - 'A' + 10):ch - '0')
+#define		UpcasecharA(ch)	( ch >= 'A'?ch:(ch - 'a' + 'A'))
+/*
+ 功能描述			16进制ASCII字符串转为用内存数据
+ szAscString		输入16进制ASCII字符串
+ nAscStringLen	输入数据长度
+ pHex				输出缓冲区
+ nBuffLen			输出缓冲区最大长度
+ 返回值			<0时 输入参数不合法
+                    >0 返回转换后pHex数据的长度
+*/
+int HexString2Binary(unsigned char* pHexBuffer, int nHexBuffLen,unsigned char* szBinary, int nBinaryLen,  CHAR chSeperator)
+{
+    if (!szBinary ||
+        !pHexBuffer ||
+        !nHexBuffLen)
+        return -1;
+    unsigned char nMult = 3;
+    if (chSeperator == '\0')
+        nMult = 2;
+
+    if (nBinaryLen * nMult < nHexBuffLen)
+        return -1;
+
+    int nCount = 0;
+    CHAR ch;
+    for (int i = 0; i < nHexBuffLen; i += nMult)
+    {
+        ch = UpcasecharA(pHexBuffer[i]);
+        unsigned char nHi = Char2DigitA(ch);
+        ch = UpcasecharA(pHexBuffer[i + 1]);
+        unsigned char nLo = Char2DigitA(ch);
+        szBinary[nCount++] = (nHi & 0x0F) << 4 | (nLo & 0x0F);
+    }
+    return nCount;
+}
+
 //#include "./Z390/include/evolis_z390_lithographprinter.h"
 
 using namespace std;
@@ -115,13 +189,16 @@ ExtraCommand cmdlist[] =
                            "</ROOT>"}},
         {"WriteCitizenCard_3303:01",{"{\"QYBZ\":\"01\"}"},},
 //        {"WriteCitizenCard_3304:01",{"{}"}},
-//        {"WriteCardEx_WenZhou:01",{"{}"}},
-//        {"WriteCardEx_WenZhou:02",{"{\"RESULT1\":\"1322C24C05E47A32410C6F1506A9B23C\",\"RESULT2\":\"51D6ECEAB5076220E135CD36B09BAFAD\"}"}},
-//        {"WriteCardEx_WenZhou:03",{"Select JsonFile","Select Photo"}},
-//        {"WriteCardEx_WenZhou:04",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ADDR\":\"浙江省温州市龙湾区张家\",\"ADDRCODE\":\"330300\",\"PHONE\":\"18888179633\"}")}},
-//        {"WriteCardEx_WenZhou:05",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ORGCODE\":\"123456\"}").toLocal8Bit().data()}},
-//        {"WriteCardEx_WenZhou:06",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"COUNTRY\":\"CHN\"}").toLocal8Bit().data()}},
+        {"WriteCardEx_WenZhou:01",{"{}"}},
+        {"WriteCardEx_WenZhou:02",{"{\"RESULT1\":\"1322C24C05E47A32410C6F1506A9B23C\",\"RESULT2\":\"51D6ECEAB5076220E135CD36B09BAFAD\"}"}},
+        {"WriteCardEx_WenZhou:03",{"Select JsonFile","Select Photo"}},
+        {"WriteCardEx_WenZhou:04",{QString("\"RESULT\":\"407901C8513DABDF53B73701B29DD5D5\",\"ADDR\":\"安徽省马鞍山市雨山区南村花平队２７－１号\",\"ADDRCODE\":\"\",\"PHONE\":\"17367075254\"").toLocal8Bit().data()}},
+       //{"WriteCardEx_WenZhou:04",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ADDR\":\"浙江省温州市龙湾区张家\",\"ADDRCODE\":\"330300\",\"PHONE\":\"18888179633\"}")}},
+        {"WriteCardEx_WenZhou:05",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"ORGCODE\":\"123456\"}").toLocal8Bit().data()}},
+        {"WriteCardEx_WenZhou:06",{QString("{\"RESULT\":\"8D1CF983465BB67EAEB20632C4D0F7AD\",\"COUNTRY\":\"CHN\"}").toLocal8Bit().data()}},
         {"EvolisCommand",{}},
+        {"CompressPicture",{"/home/gwi/git/Z390Kylin/SourcePhoto.jpg,./CompressPhoto.jpeg"}},
+        {"WriteImage",{"/home/gwi/git/Z390Kylin/build/debug/CompressPhoto.jpeg"}},
         {"EvolisStatus",{}},
         {"Reset Delay",{"5000"}},
         {"Set DeviceReset",{"True","False"}},
@@ -514,11 +591,14 @@ void MainWindow::Printer_ICPowerOn()
     unsigned char szout[1024] = {0};
     if (pPrinterInstance->Print_IcPowerOn(lTimeout,szout,nArtlen,(unsigned char *)szUID,nUidLen,szRCode))
     {
+
         OutputMsg("Print_IcPowerOn Failed!");
     }
     else
     {
-        OutputMsg("Print_IcPowerOn Succeed:%s",szout);
+        char szATR[1024] = {0};
+        Binary2Hexstring((unsigned char *)szout,nArtlen,(unsigned char *)szATR,1024,0);
+        OutputMsg("Print_IcPowerOn Succeed:%s",szATR);
     }
 }
 
@@ -537,78 +617,6 @@ void MainWindow::Printer_ICPowerOff()
     }
 }
 
-//把a转换为Hex字符
-#define TOHEXA(a, b) {*b++ = chHexTableA[a >> 4]; *b++ = chHexTableA[a & 0xf];}
-/*
- 功能描述		内存数据转换为16进制ASCII字符串
- pHex			输入数据流
- nHexLen		输入数据流长度
- szAscString	输出16进制ASCII字符串缓冲区
- nBuffLen		输出缓冲区最大长度
- 返回值		<0时 输入参数不合法
-                >0 返回转换后的ASCII符串的长度
-*/
-int Binary2Hexstring(unsigned char *pBinary,int nHexLen, unsigned char *szHexString,int nBuffLen,CHAR chSeperator)
-{
-    static const  char chHexTableA[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-    if (!pBinary ||
-        !szHexString||
-        !nBuffLen)
-        return -1;
-    unsigned char nMult = 3;
-    if (chSeperator == '\0')
-        nMult = 2;
-    if (nHexLen*nMult > nBuffLen)
-        return -1;
-    unsigned char *p = &szHexString[0];
-
-    int n;
-    for (n = 0; n < nHexLen ; n++)
-    {
-        TOHEXA(pBinary[n], p);
-        if (nMult == 2)
-            continue;
-        *p++ = chSeperator;
-    }
-    return n*nMult;
-}
-
-#define		Char2DigitA(ch)	(ch > '9'?(ch - 'A' + 10):ch - '0')
-#define		UpcasecharA(ch)	( ch >= 'A'?ch:(ch - 'a' + 'A'))
-/*
- 功能描述			16进制ASCII字符串转为用内存数据
- szAscString		输入16进制ASCII字符串
- nAscStringLen	输入数据长度
- pHex				输出缓冲区
- nBuffLen			输出缓冲区最大长度
- 返回值			<0时 输入参数不合法
-                    >0 返回转换后pHex数据的长度
-*/
-int HexString2Binary(unsigned char* pHexBuffer, int nHexBuffLen,unsigned char* szBinary, int nBinaryLen,  CHAR chSeperator)
-{
-    if (!szBinary ||
-        !pHexBuffer ||
-        !nHexBuffLen)
-        return -1;
-    unsigned char nMult = 3;
-    if (chSeperator == '\0')
-        nMult = 2;
-
-    if (nBinaryLen * nMult < nHexBuffLen)
-        return -1;
-
-    int nCount = 0;
-    CHAR ch;
-    for (int i = 0; i < nHexBuffLen; i += nMult)
-    {
-        ch = UpcasecharA(pHexBuffer[i]);
-        unsigned char nHi = Char2DigitA(ch);
-        ch = UpcasecharA(pHexBuffer[i + 1]);
-        unsigned char nLo = Char2DigitA(ch);
-        szBinary[nCount++] = (nHi & 0x0F) << 4 | (nLo & 0x0F);
-    }
-    return nCount;
-}
 
 void MainWindow::Printer_ICExchange(const char *szCmd)
 {
@@ -675,9 +683,15 @@ void MainWindow::on_pushButton_ExtraCommand_clicked()
 
     QString qstrData = ui->comboBox_ExtracommandData->currentText();
     QByteArray baData = qstrData.toLatin1();
+    char pCommand[256] = {0};
+    strcpy(pCommand,baCommand.data());
+    char szData[0xFFFF] = {0};
+    strcpy(szData,baData.data());
 
     LPVOID szCommandout = nullptr;
-    if (pPrinterInstance->Print_ExtraCommand(lTimeout,baCommand.data(),baData.data(),szCommandout,szRCode))
+    qDebug()<<"Command = "<<pCommand;
+    qDebug()<<"Data = "<< szData;
+    if (pPrinterInstance->Print_ExtraCommand(lTimeout,pCommand,szData,szCommandout,szRCode))
     {
         OutputMsg("Print_ExtraCommand Failed!:%s",szRCode);
     }

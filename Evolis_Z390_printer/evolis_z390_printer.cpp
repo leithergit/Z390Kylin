@@ -38,6 +38,7 @@
 #include <QJsonValue>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <QImage>
 #include "./json/cJSON.h"
 #include "./json/CJsonObject.hpp"
 
@@ -498,6 +499,12 @@ extern "C"
         RunlogF("Prepare QEvolisPrinter.\n");
         pEvolisPriner = new QEvolisPrinter();
         pReader = CreateReader();
+        if (pReader)
+        {
+            char szVer[32] = {0};
+            pReader->GetDevVer((uchar *)szVer);
+            RunlogF("Reader version:%s",szVer);
+        }
         //InitializeFont();
     }
 
@@ -845,10 +852,12 @@ extern "C"
             RunlogF("ATR Data:%s",dataBuffer);
 
             CardATR = dataBuffer;
-            nAtrlen = 26;
-            int nOffset = CardATR.size() - nAtrlen;;
-            m_CardInfo.ATR = CardATR.substr(nOffset,nAtrlen);
-            strcat((char*)byOutAtr, m_CardInfo.ATR.c_str());
+            nAtrlen = CardATR.size();
+            int nOffset = CardATR.size() - 26;
+            m_CardInfo.ATR = CardATR.substr(nOffset,26);
+            strcpy((char*)byOutAtr, dataBuffer);
+            pReader->a_hex((unsigned char *)dataBuffer,(unsigned char *)byOutAtr,strlen(dataBuffer));
+            nAtrlen /=2;
             RunlogF("ATR=%s",byOutAtr);
             strcpy(pszRcCode, "0000");
             return 0;
@@ -1231,7 +1240,7 @@ extern "C"
         {
             string strError;
             pReader->GetErrorMsg(strError);
-            RunlogF("Failed in ApduIntHex(%s):%s.\n",cmd.c_str(),strError.c_str());
+            RunlogF("Failed in ApduIntHex(%s):%s(%d).\n",cmd.c_str(),strError.c_str(),nRet);
             return false;
         }
         RunlogF("dc_cpuapduInt_hex return %d bytes:%s.\n",nRecvLen,dataBuff);
@@ -1590,13 +1599,30 @@ extern "C"
         }
         int ret = 0;
         char dataBuffer[1024] = { 0 };
-        RunlogF("Try to dc_cpureset_hex.");
-        if (pReader->PowerOn(dataBuffer,ret))
+        int nRetry = 0;
+        CardPostion nCurCardPos = Pos_Unknow;
+        do
         {
-            strcpy(pszRCode, "0005");
-            RunlogF("dc_cpureset_hex Failed.\n");
-            return 1;
-        }
+            RunlogF("Try to PowerOn:%d.",nRetry + 1)
+            if (pReader->PowerOn(dataBuffer,ret) == 0)              // 卡片复位
+                break;
+            RunlogF("Failed in PowerOn:%d,try to move card and PowerOn again.",++nRetry);
+            if (Pos_Unknow == nCurCardPos)
+            {
+                if (pEvolisPriner->CheckCardPostion((int *)&nCurCardPos,pszRCode,Internal) !=0)
+                {
+                    RunlogF("Failed in get card position.");
+                    return -1;
+                }
+            }
+            else
+            {
+                pEvolisPriner->MoveCard(Pos_Print,false);
+                pEvolisPriner->MoveCard(nCurCardPos,false);
+                pReader->SetCardSlot(nCurCardPos);
+            }
+
+        }while(nRetry < 3);
 
         CardATR = dataBuffer;
         RunlogF("ATR Data:%s",dataBuffer);
@@ -1608,6 +1634,48 @@ extern "C"
         return 0;
     }
 
+    //
+    int Evolis_Z390_Printer::ResetCard_RF(string &strRFATR,char * pszRCode)
+    {
+        int nCardPos = Pos_Non;
+        if (pEvolisPriner->CheckCardPostion(&nCardPos,pszRCode,Internal))
+        {
+            RunlogF("Failed in get card position.");
+            return 1;
+        }
+
+        char code[128] = { 0 };
+        if (nCardPos == Pos_Contact)
+        {
+            if (pEvolisPriner->MoveCard(Pos_Contactless))
+            {
+                RunlogF("Failed in move card to Pos_Contactless.");
+                return 1;
+            }
+           pReader->SetCardSlot(Pos_Contactless);
+        }
+        ResetCard(code);
+        strRFATR = CardATR;
+        if (nCardPos == Pos_Contact)        // restore the card position
+        {
+            if (pEvolisPriner->MoveCard(Pos_Contact))
+            {
+                RunlogF("Failed in move card to Pos_Contactless.");
+                strcpy(pszRCode,"0001");
+                return 1;
+            }
+            pReader->SetCardSlot(Pos_Contact);
+            ResetCard(code);    // Reset again
+        }
+
+        if (!strRFATR.size())
+        {
+            RunlogF("Failed in get RFATR.");
+            return 1;
+        }
+        RunlogF("RF ATR = %s",CardATR.c_str());
+        return 0;
+    }
 
     int Evolis_Z390_Printer::WriteCard1(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode)
 	{
@@ -2305,6 +2373,7 @@ extern "C"
 			RunlogF(pszRcCode);
 			return 1;
 		}
+
         string userPIN = temp;//00A404000C504B492EC9E7BBE1B1A3D5CF
         CheckResult(RunApdu( "00A40000023F00",msg,false));
 
@@ -2402,13 +2471,15 @@ extern "C"
 
 		string sm4Key = "";
 		string ENDDATA = "";
-		string strTempCommand = "";
+        //string strTempCommand = "";
 		string ENDATA = "";
 		string DATA = "";
 		string MAC = "";
-        if (ResetCard(pszRcCode))              // 卡片复位
+
+        RunlogF("Try to Resetcard.");
+        if (ResetCard(pszRcCode) != 0)              // 卡片复位
         {
-            RunlogF("Failed in Resetcard:%s",pszRcCode);
+            RunlogF("Failed in resetcard.");
             return 1;
         }
 
@@ -2796,8 +2867,14 @@ extern "C"
     int Evolis_Z390_Printer::Print_ExtraCommand(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode)
     {
 		RunlogF(pCommand);
+        RunlogF("Version = %s",LibVer);
+        QString strCommand(pCommand);
         char *pDest = nullptr;
-        if (0 == strcmp(pCommand,"GetVersion"))
+        if (strCommand.contains("WriteCardEx_WenZhou"))
+        {
+            return WZ_CitizenCardExAPDU(pCommand, (char *)lpCmdIn,lpCmdOut, pszRcCode);
+        }
+        else if (0 == strcmp(pCommand,"GetVersion"))
         {
             strcpy(pszRcCode,LibVer);
             return 0;
@@ -3127,6 +3204,46 @@ extern "C"
 		{
 			return ReadBankCard(lTimeout, pCommand, lpCmdIn, lpCmdOut, pszRcCode);
 		}
+        else if (0 == strcmp(pCommand, "CompressPicture")) //读取银行卡号
+        {
+            string strParam = (char *)lpCmdIn;
+            int nOffset = strParam.find(",");
+            string strSource = strParam.substr(0,nOffset);
+            string strDest = strParam.substr(nOffset + 1);
+            RunlogF("SourceFile = %s\tDestFile = %s",strSource.c_str(),strDest.c_str());
+            if (CompressPicture(strSource,strDest, 60))
+            {
+                strcpy(pszRcCode,"0000");
+                return 0;
+            }
+            else
+            {
+                strcpy(pszRcCode,"0001");
+                return 1;
+            }
+        }
+        else if (0 == strcmp(pCommand, "WriteImage"))
+        {
+            string strParam = (char *)lpCmdIn;
+            RunlogF("Try to read file %s!",strParam.c_str());
+            QFile fin((char *)lpCmdIn);
+            if (!fin.open(QIODevice::ReadOnly))
+            {
+                RunlogF("Failed in reading file %s!",lpCmdIn);
+                return 1;
+            }
+            QByteArray byBuffer = fin.readAll();
+            //QByteArray byBase64 = byBuffer.toBase64();
+            //RunlogF("PIC Base64:%s",byBase64.data());
+            string strCompressedPic = string(byBuffer.data(), byBuffer.size());
+            //写入照片数据
+            if(WriteImageInfo(strCompressedPic,pszRcCode) != 0)
+            {
+                return 1;
+            }
+            else
+                return 0;
+        }
         else if (strstr(pCommand,"WriteCard"))
 		{
 			const char* szWriteCard = "WriteCard:";
@@ -3249,10 +3366,10 @@ extern "C"
             else
                 return nResult;
         }
-        else if ((pDest = strstr(pCommand,"WriteCardEx_WenZhou")))
-        {
-
-        }
+//        else if ((strstr(pCommand,"WriteCardEx_WenZhou")))
+//        {
+//            return WZ_CitizenCardExAPDU(pCommand, (char *)lpCmdIn,lpCmdOut, pszRcCode);
+//        }
         else if (0 == strcmp(pCommand,"EvolisStatus"))
         {
             evolis_status_t es;
@@ -3271,13 +3388,15 @@ extern "C"
         return 0;
     }
 
-    string Evolis_Z390_Printer::GetTlvValue(string strMsg)
+    // get value from a tlv string
+    string Evolis_Z390_Printer::GetTlvValue(string strMsg,int nSize)
     {
         char szTemp[1024] = {0};
-        pReader->a_hex((unsigned char*)&strMsg.c_str()[4], (unsigned char*)szTemp, strMsg.length());
+        pReader->a_hex((unsigned char*)&strMsg.c_str()[4], (unsigned char*)szTemp, nSize - 4);
         return szTemp;
     }
 
+    // convert strValue to a tlv string
     string Evolis_Z390_Printer::GetTlvString(string strValue,int nSize)
     {
         unsigned char szTemp[1024] = {0};
@@ -4043,20 +4162,19 @@ extern "C"
                 FJKH = msg.substr(1);
 
                 //if (ReadType == DC_CARD)
+
+                if (ResetCard_RF(RFATR, pszRcCode))
                 {
-                    char Atr[128] = { 0 };
-                    if (ResetCard(Atr))
-                    {
-                        RunlogF("Failed in reset card,can't get CardATR.");
-                        return 1;
-                    }
-                    RFATR = m_CardInfo.ATR;
-                    if (RFATR.empty())
-                    {
-                        RunlogF("获取ATR失败");
-                        return 1;
-                    }
+                    RunlogF("Failed in reset card,can't get CardATR.");
+                    return 1;
                 }
+                //RFATR = m_CardInfo.ATR;
+                if (RFATR.empty())
+                {
+                    RunlogF("获取ATR失败");
+                    return 1;
+                }
+
 
                 cJSON *root_json;
                 root_json = cJSON_CreateObject();//创建项目
@@ -4100,15 +4218,24 @@ extern "C"
         Cmd = Cmd.substr(index + 1);
         RunlogF("CmdIndex = %s",Cmd.c_str());
 
-        QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
-        QJsonParseError jsErr;
-        QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
-        if (jsdoc.isNull())
-        {
-            RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
-            return false;
-        }
-        QJsonObject jsobj = jsdoc.object();
+//        QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
+//        QJsonParseError jsErr;
+//        QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+//        if (jsdoc.isNull())
+//        {
+//            RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+//            // try to analysis with GBK
+//            string strJson = GBK_Utf8(CmdParam.c_str());
+//            QByteArray baJson((char*)strJson.c_str(), strJson.size());
+//            jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+//            if (jsdoc.isNull())
+//            {
+//                RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+//                return -1;
+//            }
+
+//        }
+//        QJsonObject jsobj = jsdoc.object();
         //char szErr[1024] = { 0 };
         //strcpy(cpOutMsg,"Test String");
         //lpCmdOut = cpOutMsg;
@@ -4117,6 +4244,25 @@ extern "C"
         {
         case 1:
         {
+            QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
+            QJsonParseError jsErr;
+            QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+            if (jsdoc.isNull())
+            {
+                RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                // try to analysis with GBK
+                string strJson = GBK_Utf8(CmdParam.c_str());
+                QByteArray baJson((char*)strJson.c_str(), strJson.size());
+                jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+                if (jsdoc.isNull())
+                {
+                    RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                    return -1;
+                }
+
+            }
+            QJsonObject jsobj = jsdoc.object();
+            RunlogF("Step1 = %s",Cmd.c_str());
             cJSON *root_json = cJSON_CreateObject();
             root_json = cJSON_CreateObject();//创建项目
 
@@ -4132,21 +4278,21 @@ extern "C"
             m_CardInfo.regionCode = m_CardInfo.identifyNum.substr(0, 6);
 
             CheckResult(ReadFile("03",msg));      // 获取卡版本号
-            m_CardInfo.cardVersion = GetTlvValue(msg);
+            m_CardInfo.cardVersion = GetTlvValue(msg,msg.size() - 4);
             RunlogF("CardVersion = %s",m_CardInfo.cardVersion.c_str());
 
             CheckResult(ReadFile("04",msg));      // 获取Initial Organize
 
             CheckResult(ReadFile("05",msg));      // 获取CardReleaseDate
-            m_CardInfo.cardReleaseDate = GetTlvValue(msg);
+            m_CardInfo.cardReleaseDate = GetTlvValue(msg,msg.size() - 4);
             RunlogF("cardReleaseDate = %s",m_CardInfo.cardReleaseDate.c_str());
 
             CheckResult(ReadFile("06",msg));      // 获取CardValidDate
-            m_CardInfo.cardValidDate = GetTlvValue(msg);
+            m_CardInfo.cardValidDate = GetTlvValue(msg,msg.size() - 4);
             RunlogF("cardValidDate = %s",m_CardInfo.cardValidDate.c_str());
 
             CheckResult(ReadFile("07",msg));      // 获取CardNumber
-            m_CardInfo.cardNumber = GetTlvValue(msg);
+            m_CardInfo.cardNumber = GetTlvValue(msg,msg.size() -4);
             RunlogF("cardNumber = %s",m_CardInfo.cardNumber.c_str());
 
             //四个随机数
@@ -4177,6 +4323,24 @@ extern "C"
         break;
         case 2:
         {
+            QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
+            QJsonParseError jsErr;
+            QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+            if (jsdoc.isNull())
+            {
+                RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                // try to analysis with GBK
+                string strJson = GBK_Utf8(CmdParam.c_str());
+                QByteArray baJson((char*)strJson.c_str(), strJson.size());
+                jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+                if (jsdoc.isNull())
+                {
+                    RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                    return -1;
+                }
+            }
+            QJsonObject jsobj = jsdoc.object();
+            RunlogF("Step2 = %s",Cmd.c_str());
             std::string	RESULT1 = "",RESULT2 = "";
             if (!jsobj.contains("RESULT2"))
             {
@@ -4197,16 +4361,16 @@ extern "C"
             CheckResult(ExternalAuth("0A10",RESULT2,msg));      // 读认证
 
             CheckResult(ReadFile("07",msg));
-            m_CardInfo.cardNumber = GetTlvValue(msg);
+            m_CardInfo.cardNumber = GetTlvValue(msg,msg.size() -4);
             RunlogF("Card Number = %s",m_CardInfo.cardNumber.c_str());
 
             CheckResult(SelectDir("EF06",msg));
             CheckResult(ReadFile("01",msg));
-            m_CardInfo.cardID = GetTlvValue(msg);
+            m_CardInfo.cardID = GetTlvValue(msg,msg.size() -4);
             RunlogF("CardID = %s",m_CardInfo.cardID.c_str());
 
             CheckResult(ReadFile("02",msg));
-            m_CardInfo.name = GBK_Utf8(GetTlvValue(msg).c_str());
+            m_CardInfo.name = GBK_Utf8(GetTlvValue(msg,msg.size() -4).c_str());
             RunlogF("Name = %s",m_CardInfo.name.c_str());
 
             //checkName(m_CardInfo.cardID, "0", "");
@@ -4242,6 +4406,25 @@ extern "C"
         break;
         case 3:
         {
+            QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
+            QJsonParseError jsErr;
+            QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+            if (jsdoc.isNull())
+            {
+                RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                // try to analysis with GBK
+                string strJson = GBK_Utf8(CmdParam.c_str());
+                QByteArray baJson((char*)strJson.c_str(), strJson.size());
+                jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+                if (jsdoc.isNull())
+                {
+                    RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                    return -1;
+                }
+
+            }
+            QJsonObject jsobj = jsdoc.object();
+            RunlogF("Step3 = %s",Cmd.c_str());
             if (!jsobj.contains("RESULT") || !jsobj.contains("PIC"))
             {
                 RunlogF("Can't find 'RESULT' or 'PIC' object!");
@@ -4346,28 +4529,90 @@ extern "C"
         break;
         case 4:
         {
+            RunlogF("Step4 = %s",Cmd.c_str());
+//            QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
+//            QJsonParseError jsErr;
+//            QJsonDocument jsdoc = QJsonDocument::fromRawData(baJson, &jsErr);
+//            if (jsdoc.isNull())
+//            {
+//                RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+//                // try to analysis with GBK
+//                string strJson = GBK_Utf8(CmdParam.c_str());
+//                QByteArray baJson((char*)strJson.c_str(), strJson.size());
+//                jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+//                if (jsdoc.isNull())
+//                {
+//                    RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+//                    return -1;
+//                }
+//            }
+//            QJsonObject jsobj = jsdoc.object();
             // {"RESULT":"8D1CF983465BB67EAEB20632C4D0F7AD","ADDR":"浙江省温州市龙湾区张家","PHONE":"18888179633"}
-            std::string RANDOM1, RANDOM2;
-            if (!jsobj.contains("RESULT") ||
-                !jsobj.contains("ADDR") ||
-                !jsobj.contains("PHONE") ||
-                !jsobj.contains("ADDRCODE"))
+//            std::string RANDOM1, RANDOM2;
+//            if (!jsobj.contains("RESULT") ||
+//                !jsobj.contains("ADDR") ||
+//                !jsobj.contains("PHONE") ||
+//                !jsobj.contains("ADDRCODE"))
+//            {
+//                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' object!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+//            string strResult     = jsobj.value("RESULT").toString().toStdString();
+//            string strAddr       = jsobj.value("ADDR").toString().toStdString();
+//            string strAddrCode   = jsobj.value("ADDRCODE").toString().toStdString();
+//            string strPhone      = jsobj.value("PHONE").toString().toStdString();
+//            if (strResult.empty() || strAddr.empty() || strAddrCode.empty() || strPhone.empty())
+//            {
+//                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' can't be empty!");
+//                strcpy(pszRcCode, "0002");
+//                return -1;
+//            }
+            const char* pError;
+            cJSON *json = cJSON_Parse((char *)CmdParam.c_str(),&pError);
+            if (!json)
             {
-                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' object!");
+                RunlogF("无法解析效的命令参数:%s",CmdParam.c_str());
+                strcpy(pszRcCode,"0001");
+                return 1;
+            }
+            cJSON* root_json = cJSON_CreateObject();
+            std::string	strResult = "", strAddr = "", strAddrCode = "", strPhone = "";
+            cJSON* json_RESULT, * json_ADDR, * json_ADDRCODE, * json_PHONE;
+            json_RESULT = cJSON_GetObjectItem(json, "RESULT");
+            strResult = json_RESULT->valuestring;
+            if (strResult.empty())
+            {
                 strcpy(pszRcCode, "0002");
-                return -1;
+                RunlogF("解析RESULT失败,Err:%s" ,strResult.c_str());
+                return 1;
             }
 
-            string strResult     = jsobj.value("RESULT").toString().toStdString();
-            string strAddr       = jsobj.value("ADDR").toString().toStdString();
-            string strAddrCode   = jsobj.value("ADDRCODE").toString().toStdString();
-            string strPhone      = jsobj.value("PHONE").toString().toStdString();
-
-            if (strResult.empty() || strAddr.empty() || strAddrCode.empty() || strPhone.empty())
+            json_ADDR = cJSON_GetObjectItem(json, "ADDR");
+            strAddr = json_ADDR->valuestring;
+            if (strAddr.empty())
             {
-                RunlogF("Can't find 'RESULT','ADDR','ADDRCODE' or 'PHONE' can't be empty!");
-                strcpy(pszRcCode, "0002");
-                return -1;
+                strcpy(pszRcCode, "0003");
+                RunlogF("解析ADDR失败,Err:%s" ,strAddr.c_str());
+                return 1;
+            }
+
+            json_ADDRCODE = cJSON_GetObjectItem(json, "ADDRCODE");
+            strAddrCode = json_ADDRCODE->valuestring;
+//            if (strAddrCode.empty())
+//            {
+//                strcpy(pszRcCode, "0004");
+//                RunlogF("解析ADDRCODE失败,Err:%s" , strAddrCode.c_str());
+//                return 1;
+//            }
+
+            json_PHONE = cJSON_GetObjectItem(json, "PHONE");
+            strPhone = json_PHONE->valuestring;
+            if (strPhone.empty())
+            {
+                strcpy(pszRcCode, "0005");
+                RunlogF("解析PHONE失败,Err:%s" ,strPhone.c_str());
+                return 1;
             }
             RunlogF("Result = %s\tAddr = %s\tAddrCode = %s\tPhone = %s",strResult.c_str(),strAddr.c_str(),strAddrCode.c_str(),strPhone.c_str());
 
@@ -4389,7 +4634,7 @@ extern "C"
             CheckResult(GetRandom(msg));
             string strDisFac = msg.substr(0, 16);
 
-            cJSON *root_json = cJSON_CreateObject();
+            root_json = cJSON_CreateObject();
             //shared_ptr<cJSON> JsonDestruct(root_json,cJSON_Delete);
             cJSON_AddItemToObject(root_json, "AAB301", cJSON_CreateString(m_CardInfo.regionCode.substr(0, 6).c_str()));
             cJSON_AddItemToObject(root_json, "AAC002", cJSON_CreateString(m_CardInfo.cardID.c_str()));
@@ -4412,6 +4657,25 @@ extern "C"
         break;
         case 5:
         {
+            QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
+            QJsonParseError jsErr;
+            QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+            if (jsdoc.isNull())
+            {
+                RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                // try to analysis with GBK
+                string strJson = GBK_Utf8(CmdParam.c_str());
+                QByteArray baJson((char*)strJson.c_str(), strJson.size());
+                jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+                if (jsdoc.isNull())
+                {
+                    RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                    return -1;
+                }
+
+            }
+            QJsonObject jsobj = jsdoc.object();
+            RunlogF("Step5 = %s",Cmd.c_str());
             std::string	RESULT = "", ORGCODE = "";
             if (!jsobj.contains("RESULT") ||
                 !jsobj.contains("ORGCODE"))
@@ -4468,6 +4732,25 @@ extern "C"
         break;
         case 6:
         {
+            QByteArray baJson((char*)CmdParam.c_str(), CmdParam.size());
+            QJsonParseError jsErr;
+            QJsonDocument jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+            if (jsdoc.isNull())
+            {
+                RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                // try to analysis with GBK
+                string strJson = GBK_Utf8(CmdParam.c_str());
+                QByteArray baJson((char*)strJson.c_str(), strJson.size());
+                jsdoc = QJsonDocument::fromJson(baJson, &jsErr);
+                if (jsdoc.isNull())
+                {
+                    RunlogF("Error in parser json:%s",jsErr.errorString().toStdString().c_str());
+                    return -1;
+                }
+
+            }
+            QJsonObject jsobj = jsdoc.object();
+            RunlogF("Step6 = %s",Cmd.c_str());
             std::string	RESULT = "", COUNTRY = "";
             if (!jsobj.contains("RESULT") ||
                 !jsobj.contains("COUNTRY"))
@@ -4546,13 +4829,12 @@ extern "C"
                 msg = msg.substr(0, msg.length() - 4);
                 FJKH = msg.substr(1);
 
-                char Atr[128] = { 0 };
-                if (ResetCard(Atr))
+                if (ResetCard_RF(RFATR, pszRcCode))
                 {
                     RunlogF("Failed in reset card,can't get CardATR.");
                     return 1;
                 }
-                RFATR = Atr;
+                //RFATR = m_CardInfo.ATR;
                 if (RFATR.empty())
                 {
                     RunlogF("获取ATR失败");
@@ -4835,13 +5117,12 @@ extern "C"
                 msg = msg.substr(0, msg.length() - 4);
                 FJKH = msg.substr(1);
 
-                char Atr[128] = { 0 };
-                if(ResetCard(Atr))
+                if (ResetCard_RF(RFATR, pszRcCode))
                 {
-                     RunlogF("Reset Card failed");
-                     return 1;
+                    RunlogF("Failed in reset card,can't get CardATR.");
+                    return 1;
                 }
-                RFATR = Atr;
+                //RFATR = m_CardInfo.ATR;
                 if (RFATR.empty())
                 {
                     RunlogF("获取ATR失败");
@@ -5066,16 +5347,16 @@ extern "C"
                     FJKH = msg.substr(1);
                 }
 
-                //if (ReadType == DC_CARD)
+                if (ResetCard_RF(RFATR, pszRcCode))
                 {
-                    char Atr[128] = { 0 };
-                    ResetCard(Atr);
-                    RFATR = Atr;
-                    if (RFATR.empty())
-                    {
-                        RunlogF("获取ATR失败");
-                        return 1;
-                    }
+                    RunlogF("Failed in reset card,can't get CardATR.");
+                    return 1;
+                }
+                //RFATR = m_CardInfo.ATR;
+                if (RFATR.empty())
+                {
+                    RunlogF("获取ATR失败");
+                    return 1;
                 }
 
                 cJSON *root_json;
@@ -5163,7 +5444,7 @@ extern "C"
                     RunlogF("解析SUBTYPE失败");
                     return 1;
                 }
-                CheckResult(RunApdu( "00A40000023F00",msg));
+                CheckResult(RunApdu( "00A40000023F00",msg,false));
                 RunlogF(msg.c_str());
                 CheckResult(RunApdu( "00A4040008A000000632010105",msg));	//打开文件夹
 
@@ -5176,13 +5457,11 @@ extern "C"
                 SJS = msg.substr(0, msg.length() - 4);
                 SJS += "00000000";
 
-
                 int tempNum = atoi(MAINTYPE.c_str());
                 sprintf(temp, "%02X", tempNum);
                 MAINTYPE = temp;
 
                 transform(MAINTYPE.begin(), MAINTYPE.end(), MAINTYPE.begin(), ::toupper);
-
 
                 CMD = "04D6851C06" + MAINTYPE + SUBTYPE;
 
@@ -5219,32 +5498,27 @@ extern "C"
             break;
             case 3:
             {
-                std::string RFATR = "";//非接芯片ATR
-                std::string FJKH = "";//非接卡号
-
+                std::string strRFATR = "";//非接芯片ATR
+                std::string strFJKH = "";//非接卡号
                 CheckResult(RunApdu( "00B0950A0A",msg ));	//获取对应数据
 
                 msg = msg.substr(0, msg.length() - 4);
-                FJKH = msg.substr(1);
+                strFJKH = msg.substr(1);
 
+                if (ResetCard_RF(strRFATR,pszRcCode))
+                    return 1;
 
-                //if (ReadType == DC_CARD)
+                if (strRFATR.empty())
                 {
-                    char Atr[128] = { 0 };
-                    ResetCard( Atr);
-                    RFATR = Atr;
-                    if (RFATR.empty())
-                    {
-                        RunlogF("获取ATR失败");
-                        return 1;
-                    }
+                    RunlogF("获取ATR失败");
+                    return 1;
                 }
-
+                RunlogF("RF ATR = %s.\n",strRFATR.c_str());
                 cJSON *root_json;
                 root_json = cJSON_CreateObject();//创建项目
 
-                cJSON_AddItemToObject(root_json, "RFATR", cJSON_CreateString(RFATR.c_str()));
-                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(FJKH.c_str()));
+                cJSON_AddItemToObject(root_json, "RFATR", cJSON_CreateString(strRFATR.c_str()));
+                cJSON_AddItemToObject(root_json, "CARD_NO", cJSON_CreateString(strFJKH.c_str()));
 
                 out = cJSON_PrintUnformatted(root_json);
                 retJSON = out;
@@ -5575,17 +5849,16 @@ extern "C"
                 msg = msg.substr(0, msg.length() - 4);
                 FJKH = msg.substr(1);
 
-
-                //if (ReadType == DC_CARD)
+                if (ResetCard_RF(RFATR, pszRcCode))
                 {
-                    char Atr[128] = { 0 };
-                    ResetCard(Atr);
-                    RFATR = Atr;
-                    if (RFATR.empty())
-                    {
-                        RunlogF("获取ATR失败");
-                        return 1;
-                    }
+                    RunlogF("Failed in reset card,can't get CardATR.");
+                    return 1;
+                }
+                //RFATR = m_CardInfo.ATR;
+                if (RFATR.empty())
+                {
+                    RunlogF("获取ATR失败");
+                    return 1;
                 }
 
                 cJSON *root_json;
@@ -5622,8 +5895,10 @@ extern "C"
     {
         QByteArray baPic = QByteArray::fromBase64(inPic.c_str());
         outPic = string((char*)baPic.data(), baPic.size());
-        static const char *szCompressedFileName = "/sdcard/Z390/CompressedPhoto.jpg";
-        static const char *szSourceFileName = "/sdcard/Z390/SourcePhoto.jpg";
+        static const char *szCompressedFileName = "./CompressedPhoto.jpg";
+        static const char *szSourceFileName = "./SourcePhoto.jpg";
+        //static const char *szCompressedFileName = "/usr/KIOSK/Data/CompressedPhoto.jpg";
+        //static const char *szSourceFileName = "/usr/KIOSK/Data/SourcePhoto.jpg";
         QFileInfo fi(szCompressedFileName);
         if (fi.isFile())
         {
@@ -5652,7 +5927,7 @@ extern "C"
         }
         else
         {
-            RunlogF("The size of input picture is less than 7K,skip compressing!");
+            RunlogF("The size of input picture is less than %dK,skip compressing!",PhotoCompressParam.nSize/1024);
         }
 
         RunlogF("Try to read file %s!",szCompressedFileName);
@@ -5676,6 +5951,7 @@ extern "C"
         char szSliceSize[16] = {0};
         RunlogF("Try to write picture.");
         int nSliceSize = 510;
+        RunlogF("DataBuffer = %s",pHexData);
         for (size_t i = 0; i < nHexDataLen; i+= 510)	//循环分段写入数据
         {
             if((i + 510 )>= nHexDataLen)
@@ -5689,7 +5965,7 @@ extern "C"
             strCmd += szSliceSize;
             strCmd += strBuff.substr(i,nSliceSize);
             string msg;
-            //RunlogF("strCmd = %s",strCmd.c_str());
+            RunlogF("strCmd = %s",strCmd.c_str());
             CheckResult(RunApdu(strCmd,msg));
         }
         RunlogF("Picture wrote succeed!");
@@ -5698,14 +5974,45 @@ extern "C"
 
     bool Evolis_Z390_Printer::CompressPicture(std::string strSource,string strDest, int nZoomPercent)
     {
-        cv::Mat img = cv::imread(strSource);
+        QFileInfo fi(strSource.c_str());
+        if (!fi.isFile())
+        {
+            RunlogF("Can't locate file %s!",strSource.c_str());
+            return false;
+        }
+        cv::Mat img = cv::imread(strSource,IMREAD_ANYCOLOR);
         if (!img.data)
         {
-            RunlogF("invalid image!");
-            return false;
+            string strJpegBuffer;
+            int nPicWidth = 0,nPicHeight = 0;
+            //RunlogF("Failed in read %s,it may be a invalid image!",strSource.c_str());
+            RunlogF("Load a jpeg file :%s.\n",strSource.c_str());
+
+            if (ReadJpeg(strSource,strJpegBuffer,nPicWidth,nPicHeight))
+            {
+                RunlogF("Failed in load file :%s.\n",strSource.c_str());
+                return false;
+            }
+            img.create(nPicHeight,nPicWidth,CV_8UC3);
+            if (img.data)
+                memcpy(img.data,strJpegBuffer.c_str(),strJpegBuffer.size());
+            else
+            {
+                RunlogF("Insufficent memory in load file :%s.\n",strSource.c_str());
+                return false;
+            }
         }
         int width = img.cols;
         int height = img.rows;
+
+//        QImage qjpeg(strSource.c_str());
+//        if (!qjpeg.isNull())
+//        {
+//             RunlogF("Failed in load file :%s.\n",strSource.c_str());
+//             return false;
+//        }
+//        int width = qjpeg.width();
+//        int heigrht = qjpeg.height();
         RunlogF("Image Width = %d,Height = %d.",width,height);
 
         int  nCompressRate = 90;
@@ -5719,8 +6026,12 @@ extern "C"
             if (nCompressRate == 0)
                 break;
             RunlogF("Try to compress pic with rate:%d%%!", nCompressRate);
+            //qjpeg = qjpeg.scaled(nDestWidth,nDestHeight);
             cv::resize(img, img, cv::Size(nDestWidth, nDestHeight));
-            cv::imwrite(strDest, img, { IMWRITE_JPEG_QUALITY, nCompressRate });
+            RunlogF("Dest File = %s",strDest.c_str());
+           // cv::imwrite("./Dest.bmp", img);
+
+            WriteJpeg(strDest,img.data,nDestWidth,nDestHeight,nCompressRate);
 
             QFileInfo fi(strDest.c_str());
             if (fi.size() <= PhotoCompressParam.nSize)

@@ -264,6 +264,7 @@ public:
         int ReadBankCard(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode);
 
         int ReadBankCard1(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode);
+
         int ReadBankCard2(long lTimeout, char* pCommand, LPVOID lpCmdIn, LPVOID& lpCmdOut, char* pszRcCode);
 
         bool GetCardNumber(string strMsg,int nGPOIndex,int nRecsize,string &strCardNumber);
@@ -358,7 +359,9 @@ public:
 
         int ResetCard(char * pszRCode);
 
-        string GetTlvValue(string strMsg);
+        int ResetCard_RF(string &strRFATR,char * pszRCode);
+
+        string GetTlvValue(string strMsg,int nSize);
 
         string GetTlvString(string strValue,int nSize);
 

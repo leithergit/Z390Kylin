@@ -24,7 +24,7 @@ using namespace  cv;
 #include <string>
 using namespace std;
 using namespace chrono ;
-#define LibVer     "Z390_1.0.2.11 "
+#define LibVer     "Z390_1.0.2.19 "
 struct myFontInfo
 {
     string strPath;
@@ -186,6 +186,7 @@ using  evolis_get_infos          = int (*)(evolis_t* printer, evolis_infos_t* in
 using  evolis_get_ribbon         = int (*)(evolis_t* printer, evolis_ribbon_t* ribbon);
 using  evolis_get_cleaning       = int (*)(evolis_t* printer, evolis_cleaning_t* infos);
 using  evolis_command            = ssize_t (*)(evolis_t* printer, const char* cmd, size_t cmdSize, char* reply, size_t replyMaxSize);
+using  evolis_commandt           = ssize_t (*)(evolis_t* printer, const char* cmd, size_t cmdSize, char* reply, size_t replyMaxSize,int timeout);
 using  evolis_set_card_pos       = int (*)(evolis_t* printer, evolis_pos_t pos);
 using  evolis_print_init         = int (*)(evolis_t* printer);
 using  evolis_reset              = int (*)(evolis_t* printer,int timeout,char* timeouted);
@@ -206,11 +207,12 @@ using TextInfoPtr = std::shared_ptr<TextInfo>;
 using TaskPtr = std::shared_ptr<Task>;
 
 #define RunlogF(...)    Runlog(__PRETTY_FUNCTION__,__LINE__,__VA_ARGS__);
-#define Funclog()       //FuncRunlog(__PRETTY_FUNCTION__,__LINE__);
+#define Funclog()       FuncRunlog(__PRETTY_FUNCTION__,__LINE__);
 
 void Runlog(const char* pFunction,int nLine,const char* pFormat, ...);
 void FuncRunlog(const char* pFunction,int nLine);
-
+int ReadJpeg(string strFile,string &strBuffer,int &nWidth,int &nHeight);
+int WriteJpeg(string strFile,uchar* strBuffer,int nWidth,int nHeight,int nQuality);
 enum CheckType
 {
     Both = 0,
@@ -271,6 +273,7 @@ public:
     evolis_get_ribbon       pevolis_get_ribbon       = nullptr;
     evolis_get_cleaning     pevolis_get_cleaning     = nullptr;
     evolis_command          pfnevolis_command        = nullptr;
+    evolis_commandt         pfnevolis_commandt       = nullptr;
     evolis_set_card_pos     pevolis_set_card_pos     = nullptr;
     evolis_print_init       pevolis_print_init       = nullptr;
     evolis_reset            pevolis_reset            = nullptr;
@@ -293,6 +296,13 @@ public:
         TraceFnTime t((char *)cmd,reply,nLine);
         //this_thread::sleep_for(chrono::milliseconds(50));
         return pfnevolis_command(printer,cmd,cmdSize,reply,replyMaxSize);
+    }
+#define pevolis_commandt(P1,P2,P3,P4,P5,P6 ) ppevolis_commandt(P1,P2,P3,P4,P5,P6,__LINE__)
+    ssize_t ppevolis_commandt(evolis_t* printer, const char* cmd, size_t cmdSize, char* reply, size_t replyMaxSize, int timeout,int nLine)
+    {
+        TraceFnTime t((char *)cmd,reply,nLine);
+        //this_thread::sleep_for(chrono::milliseconds(50));
+        return pfnevolis_commandt(printer,cmd,cmdSize,reply,replyMaxSize,timeout);
     }
 #define pevolis_print_set_option(P1,P2,P3) ppevolis_print_set_option(P1,P2,P3,__LINE__)
      int ppevolis_print_set_option(evolis_t* printer, const char* key, const char* value,int nLine)

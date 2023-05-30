@@ -17,6 +17,7 @@
 #include <sstream>
 #include <turbojpeg.h>
 #include <QJsonObject>
+
 #include <QJsonParseError>
 #include "SimpleIni.h"
 #include "QEvolisPrinter.h"
@@ -114,7 +115,7 @@ void Runlog(const char* pFunction,int nLine,const char* pFormat, ...)
     va_list args;
     va_start(args, pFormat);
     int nBuff;
-    CHAR szBuffer[16484] = {0};
+    CHAR szBuffer[0xFFFF] = {0};
     nBuff = vsnprintf(szBuffer, __countof(szBuffer), pFormat, args);
     va_end(args);
 
@@ -656,7 +657,7 @@ _PhotoCompressParameters::_PhotoCompressParameters() noexcept
 
     try
     {
-        strJsonFile = "/sdcard/Z390/PhotoCompressParameters.json";
+        strJsonFile = "./PhotoCompressParameters.json";
         QFileInfo PhotoParam(strJsonFile.c_str());
         if (PhotoParam.isFile())
         {
@@ -679,6 +680,9 @@ _PhotoCompressParameters::_PhotoCompressParameters() noexcept
 QEvolisPrinter::QEvolisPrinter()
 {
     Funclog();
+    string strInfo = cv::getBuildInformation();
+    qDebug()<<"OpenCV BuildInfo:";
+    qDebug()<<strInfo.c_str();
     QString strLib = QDir::currentPath();
     strLib += "/libevolis.so";
     //strLib += "libKT-R85.so";
@@ -701,6 +705,7 @@ QEvolisPrinter::QEvolisPrinter()
     pevolis_get_ribbon       = GetProcAddr(pHandle, evolis_get_ribbon      );
     pevolis_get_cleaning     = GetProcAddr(pHandle, evolis_get_cleaning    );
     pfnevolis_command        = GetProcAddr(pHandle, evolis_command         );
+    pfnevolis_commandt       = GetProcAddr(pHandle, evolis_commandt        );
     pevolis_set_card_pos     = GetProcAddr(pHandle, evolis_set_card_pos    );
     pevolis_print_init       = GetProcAddr(pHandle, evolis_print_init      );
     pevolis_reset            = GetProcAddr(pHandle, evolis_reset           );
@@ -1039,12 +1044,15 @@ int  QEvolisPrinter::Open(char *pPort, char *pPortParam, char *pszRcCode)
    char szReply[64] = {0};
    const char *szCmd[]={
                         "Pem;2",       // 将打印机自动纠错复位禁用，完全由上位程序发送指令
-                        "Psmgr;2",     // 防止进卡和出卡阻塞
                         "Pcim;F",      // 从卡箱进卡
                         "Pcem;I",      // 从出卡口出卡
+                        "Psmgr;2",     // discard for the error no -22 of evolis_print_exec
                         "Pneab;E",     // 打印结束后不出卡
                         "Pcrm;D",      // 设定出卡箱为废卡箱
-                        "Pbc;A;D",
+                        //"Pbc;D;30",   // Eject card timeout 30s
+                        "Pbc;A;D",      // disable timeout action
+                        //"Pbc;A;N",    // if timeout reinsert card to Printer
+                        //"Pbc;A;R"     // if timeout eject card to the eject box
                         "Pfs;700;660;1200;500;1700"//decrease the speed of depense
                        };
 
@@ -1443,7 +1451,7 @@ int  QEvolisPrinter::Eject(long lTimeout, char *pszRcCode)
 {
     Funclog();
     CheckPrinter(m_pPrinter);
-    char szReply[64] = {0};
+    char szReply[128] = {0};
 
     int nCardPos = 0;
     if (CheckCardPostion(&nCardPos,pszRcCode))
@@ -1472,29 +1480,55 @@ int  QEvolisPrinter::Eject(long lTimeout, char *pszRcCode)
     case 3:
     default:
     {
-        auto szCommand ={ "Ss",  "Pneab;A;1",  "Se"};
-        int Res = 0;
-
-        for (auto var : szCommand)
+        char* var[] ={"Pneab;A;1",  "Se"};
+        int Res = pevolis_command(m_pPrinter, var[0],strlen(var[0]), szReply,sizeof(szReply));
+        if (Res < 0)
         {
-            Res = pevolis_command(m_pPrinter, var,strlen(var), szReply,sizeof(szReply));
-            if (Res < 0)
+            RunlogF("evolis_command(%s)failed:%d.\n",var[0],Res);
+            strcpy(pszRcCode, "0006");
+            bFault = true;
+            return 1;
+        }
+        this_thread::sleep_for(chrono::milliseconds(100));
+        auto tStart = chrono::high_resolution_clock::now();
+        Res = pevolis_commandt(m_pPrinter, var[1],strlen(var[1]), szReply,sizeof(szReply),60*1000);
+        if (Res < 0)
+        {
+            RunlogF("evolis_commandt(%s)failed:%d.\n",var[1],Res);
+            strcpy(pszRcCode, "0006");
+            bFault = true;
+            return 1;
+        }
+
+        auto tDuration =  chrono::duration_cast<seconds>(chrono::high_resolution_clock::now() - tStart);
+        if (CheckCardPostion(&nCardPos,pszRcCode,Internal))
+            return 1;
+        if (tDuration.count() >= 15)
+        {// Eject card timeout and reinsert card to printer
+            char *szCommand[] = {"Pcrm;D",    // 设定出卡箱为废卡箱
+                                 "Ser" };     // 设置为废卡
+            for(auto var:szCommand)
             {
-                RunlogF("evolis_command(%s)failed.\n",var);
-                strcpy(pszRcCode, "0006");
+                Res = pevolis_command(m_pPrinter, var,strlen(var), szReply,sizeof(szReply));
+                if (Res < 0)
+                {
+                    RunlogF("evolis_command(%s)failed:%d.\n",var[0],Res);
+                    strcpy(pszRcCode, "0006");
+                    bFault = true;
+                    return 1;
+                }
+            }
+            strcpy(pszRcCode,"Retract");
+            return 0;
+        }
+        else
+        {// card is removed
+            if (nCardPos != Pos_Non)
+            {
+                strcpy(pszRcCode, "0016");
                 bFault = true;
                 return 1;
             }
-
-            this_thread::sleep_for(chrono::milliseconds(100));
-        }
-        if (CheckCardPostion(&nCardPos,pszRcCode,Internal))
-            return 1;
-        if (nCardPos != Pos_Non)
-        {
-            strcpy(pszRcCode, "0016");
-            bFault = true;
-            return 1;
         }
     }
     }
@@ -2150,7 +2184,7 @@ int QEvolisPrinter::MoveCard(CardPostion nDstPos,bool bCheckPos)
         return 1;
     }
     pevolis_command(m_pPrinter,"Rlr;p", 5, szReply, sizeof(szReply));
-    RunlogF("Card Postition:.\n",szReply);
+    RunlogF("Card Postition:%s.\n",szReply);
 
     return 0;
 
@@ -2314,7 +2348,11 @@ int QEvolisPrinter::CheckCardPostion(int *Media,char *pszRcCode,CheckType nCheck
     {
         bFault = false;
     }
-    pReader->SetCardSlot(*Media);
+    else
+    {
+        pReader->SetCardSlot(*Media);
+        RunlogF("SetCardSlot %d",*Media);
+    }
     return 0;
 }
 
@@ -2631,6 +2669,71 @@ int ReadJpeg(string strFile,string &strBuffer,int &nWidth,int &nHeight)
     }
 }
 
+int WriteJpeg(string strFile,uchar *strBuffer,int nWidth,int nHeight,int nQuality)
+{
+    if (!strBuffer)
+    {
+        RunlogF("Failed in writing jpeg,the buffer is emplty!")
+        return -1;
+    }
+    QFileInfo fi(strFile.c_str());
+    if (fi.isFile())
+    {
+        RunlogF("Remove file %s!",strFile.c_str());
+        QFile::remove(strFile.c_str());
+    }
+    else if (fi.isDir())
+    {
+        RunlogF("The file %s is a directory,please remove or rename it to another name!",strFile.c_str());
+        return false;
+    }
+    tjhandle compressor = tjInitCompress();
+    if (!compressor)
+    {
+        RunlogF("Failed in tjInitCompress,the buffer is empty!")
+        return -1;
+    }
+    int nPitch = tjPixelSize[TJPF_BGR]*nWidth;
+    unsigned long nCompressDataSize = 0;
+    unsigned char *szCompressedData =   nullptr;
+    /*
+     int tjCompress2(tjhandle handle, const unsigned char *srcBuf,
+                          int width, int pitch, int height, int pixelFormat,
+                          unsigned char **jpegBuf, unsigned long *jpegSize,
+                          int jpegSubsamp, int jpegQual, int flags);
+    */
+
+    bool bSucceed = false;
+    do
+    {
+
+        int nStatus = tjCompress2(compressor,(const unsigned char *)strBuffer,
+                                       nWidth,nPitch,nHeight,TJPF_BGR,
+                                       &szCompressedData,&nCompressDataSize,
+                                       TJSAMP_444,nQuality,TJFLAG_ACCURATEDCT);
+        if (nStatus != 0)
+        {
+            RunlogF("Failed in compress JPEG!");
+            break;
+        }
+        QFile jpegFile(strFile.c_str());
+        if (!jpegFile.open(QIODevice::WriteOnly))
+        {
+            RunlogF("Failed in creating file %s!",strFile.c_str());
+            break;
+        }
+        if (jpegFile.write((char *)szCompressedData,nCompressDataSize) == -1)
+        {
+            RunlogF("Failed in writing daa into file %s!",strFile.c_str());
+            break;
+        }
+        jpegFile.close();
+        bSucceed = true;
+    } while(0) ;
+    tjDestroy(compressor);
+    return bSucceed;
+}
+
 int QEvolisPrinter::MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVector,string &strImagePath,string &strTextPath,char *pszRcCode,float fScale,float fScale2)
 {
     string strJpegBuffer;
@@ -2651,6 +2754,12 @@ int QEvolisPrinter::MakeImage(PICINFO& inPicInfo, list<TextInfoPtr>& inTextVecto
     std::transform(strPicFile.begin(),strPicFile.end(),strPicFile.begin(),::toupper);
 
     Mat HeaderImage(nPicHeight,nPicWidth,CV_8UC3);
+//    Mat HeaderImage = cv::imread(strPicFile);
+//    if (HeaderImage.empty())
+//    {
+//        RunlogF("Failed in load file :%s.\n",inPicInfo.picpath.c_str());
+//        FailedCode("0013");
+//    }
 
     if (strPicFile.find("JPG") != string::npos ||
         strPicFile.find("JPEG") != string::npos)
@@ -2950,7 +3059,7 @@ int  QEvolisPrinter::SendCommand(const char *lpCmdIn,LPVOID &lpCmdOut,char *pszR
      Funclog();
      CheckHandle();
 
-     if (pevolis_command(m_pPrinter,lpCmdIn,strlen(lpCmdIn),szEvolisReply,sizeof(szEvolisReply)) < 0)
+     if (pevolis_commandt(m_pPrinter,lpCmdIn,strlen(lpCmdIn),szEvolisReply,sizeof(szEvolisReply),60*1000) < 0)
      {
          strcpy(pszRcCode,"0006");
          return 1;
